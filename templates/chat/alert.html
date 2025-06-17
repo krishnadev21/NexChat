@@ -1,0 +1,114 @@
+{% if messages %}
+<div class="fixed top-4 right-4 z-50 space-y-4 w-80" id="messages-container">
+  {% for message in messages %}
+  <div
+    class="relative flex justify-center items-center p-4 pr-10 text-sm rounded-lg shadow-lg transition-all duration-300 
+    {% if message.tags == 'success' %} bg-green-50 text-green-800 border border-green-200 
+    {% elif message.tags == 'error' %} bg-red-50 text-red-800 border border-red-200 
+    {% elif message.tags == 'info' %} bg-blue-50 text-yellow-800 border border-blue-200 
+    {% else %} bg-gray-50 text-gray-800 border border-gray-200 
+    {% endif %}"
+    role="alert"
+    x-data="{ show: true }"
+    x-show="show"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 translate-x-10"
+    x-transition:enter-end="opacity-100 translate-x-0"
+    x-transition:leave="transition ease-in duration-300"
+    x-transition:leave-start="opacity-100 translate-x-0"
+    x-transition:leave-end="opacity-0 translate-x-10"
+    x-init="setTimeout(() => show = false, 3000)"
+  >
+    <!-- Icons -->
+    {% if message.tags == 'success' %}
+      <svg
+        class="w-8 h-8 mt-0.5 mr-2 flex-shrink-0 text-green-500"
+        fill="currentColor"
+        viewBox="0 0 20 20"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd"
+        ></path>
+      </svg>
+    {% elif message.tags == 'error' %}
+      <svg
+        class="w-8 h-8 mt-0.5 mr-2 flex-shrink-0 text-red-500"
+        fill="currentColor"
+        viewBox="0 0 20 20"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+          clip-rule="evenodd"
+        ></path>
+      </svg>
+    {% elif message.tags == 'info' %}
+      <svg
+        class="w-8 h-8 mt-0.5 mr-2 flex-shrink-0 text-blue-500"
+        fill="currentColor"
+        viewBox="0 0 20 20"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z"
+          clip-rule="evenodd"
+        ></path>
+      </svg>
+    {% endif %}
+
+    <span class="flex-1">{{ message }}</span>
+
+    <!-- Close button -->
+    <button
+      @click="show = false"
+      class="p-1 rounded-full hover:bg-opacity-20 focus:outline-none {% if message.tags == 'success' %} hover:bg-green-500 {% elif message.tags == 'error' %} hover:bg-red-500 {% elif message.tags == 'info' %} hover:bg-blue-500 {% else %} hover:bg-gray-500 {% endif %}"
+      aria-label="Close"
+    >
+      <svg
+        class="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        ></path>
+      </svg>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Alpine.js initialization -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Remove messages from DOM after they fade out
+    const containers = document.querySelectorAll("[x-data]");
+    containers.forEach((container) => {
+      Alpine.initTree(container);
+
+      // Watch for when show becomes false and remove element
+      const observer = new MutationObserver(() => {
+        if (container.__x.$data.show === false) {
+          setTimeout(() => container.remove(), 300);
+        }
+      });
+
+      observer.observe(container, {
+        attributes: true,
+        childList: false,
+        subtree: false,
+      });
+    });
+  });
+</script>
+{% endif %}

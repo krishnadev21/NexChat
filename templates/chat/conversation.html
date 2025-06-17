@@ -1,0 +1,251 @@
+{% extends "chat/base.html" %} 
+
+{% block content %}
+  <!-- Chat area -->
+  <div class="flex flex-col h-screen bg-[#0B141A]">
+      {% if conversation.partner %}
+      <!-- Chat header -->
+      <div class="p-3 border-b border-[#2F3B43] bg-[#202C33] flex justify-between items-center">
+        <div>
+          <div class="flex items-center space-x-3">
+            <img
+              src="{{ conversation.partner.avatar.url|default:'/media/default.jpg' }}"
+              alt="{{ conversation.partner.username }}"
+              class="w-10 h-10 rounded-full object-cover"
+              onerror="this.src='/static/images/default-avatar.jpg'"
+            />
+          <div>
+            <h2 class="font-medium text-[#E9EDEF]">{{ conversation.partner.username }}</h2>
+            <p class="text-xs text-[#8696A0]">{{ conversation.partner.last_activity }}</p>
+          </div>
+          </div>
+        </div>
+
+          <!-- Clear chats Icon -->
+          <a href="{% url 'delete-conversation' conversation.partner.id %}">
+            <button class="text-[#fff] cursor-pointer" title="Clear chats">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+            </button>
+          </a>
+      </div>
+    {% endif %}
+
+    <!-- Messages container -->
+    <div
+      class="flex-1 overflow-y-auto p-4 space-y-2 bg-[#0B141A] bg-opacity-95"
+      id="messages-container"
+    >
+      <!-- Messages will be inserted here -->
+      {% for message in conversation.messages %}
+      <div class="flex {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %} gap-2 mb-3">
+        <!-- Avatar for received messages -->
+        {% if message.sender != request.user %}
+        <img
+            src="{{ message.sender.avatar.url|default:'/media/default.jpg' }}"
+            alt="{{ message.sender.username }}"
+            class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            onerror="this.src='/static/images/default-avatar.jpg'"
+        />
+        {% endif %}
+        
+          <!-- Message bubble -->
+          <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3 {% if message.sender == request.user %}rounded-tl-[30px] bg-[#005C4B]{% else %}rounded-tr-[30px] bg-[#202C33]{% endif %} group relative">
+          <!-- Message content with hover actions -->
+          <div class="relative">
+            <p class="text-[#E9EDEF] pr-6">{{ message.body }}</p>
+            
+            <!-- Hover action buttons -->
+            <div class="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-1 bg-[#00000066] rounded-lg p-1">
+                <!-- Edit Icon -->
+                <button class="text-[#E9EDEF] hover:text-white p-1 cursor-pointer" title="Edit">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                  </svg>
+                </button>
+                
+                {% if message.sender == request.user %}
+                  <!-- Delete Icon -->
+                  <a href="{% url 'delete-message' message.id %}">
+                    <button class="text-[#E9EDEF] hover:text-white p-1 cursor-pointer" title="Delete">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                      </svg>
+                    </button>
+                  </a>
+                {% endif %}
+                
+                <!-- Info Icon -->
+                <button class="text-[#E9EDEF] hover:text-white p-1 cursor-pointer" title="Info">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                  </svg>
+                </button>
+            </div>
+          </div>
+          
+          <!-- Timestamp and read receipts -->
+          <p class="text-xs text-[#8696A0] text-right mt-1">
+            {{ message.created_at|time:"H:i" }} 
+            {% if message.sender == request.user %}
+              {% if message.recipient_has_read %}
+                <span class="ml-1 text-[#53BDEB]">✓✓</span>
+              {% else %}
+                <span class="ml-1 text-gray-400">✓</span>
+              {% endif %}
+            {% endif %}
+          </p>
+      </div>
+          
+          <!-- Avatar for sent messages -->
+          {% if message.sender == request.user %}
+          <img
+            src="{{ message.sender.avatar.url|default:'/media/default.jpg' }}"
+            alt="{{ request.user.username }}"
+            class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            onerror="this.src='/static/images/default-avatar.jpg'"
+          />
+          {% endif %}
+      </div>
+      {% empty %}
+        <div class="text-center text-[#8696A0] py-8">No messages yet</div>
+      {% endfor %}
+  </div>
+
+    <!-- Message input -->
+    <div class="p-3 bg-[#202C33]">
+      <form method="post" id="chat-form" class="flex items-center gap-2 w-full">
+        {% csrf_token %}
+        <input
+          type="hidden"
+          name="to_user"
+          id="to_user"
+          value="{{ conversation.partner }}"
+        />
+        <div class="flex-1 min-w-0">
+          <input
+          type="text"
+          name="body"
+          id="body"
+          placeholder="Type a message"
+          class="w-full bg-[#2A3942] text-[#E9EDEF] rounded-full px-4 py-2 focus:outline-none focus:ring-1 focus:ring-[#00A884]"
+          autocomplete="off"
+          required
+          />
+        </div>
+        <button
+          type="submit"
+          class="shrink-0 bg-[#00A884] text-white rounded-full p-2 hover:bg-[#06CF9C] focus:outline-none focus:ring-1 focus:ring-white cursor-pointer"
+          aria-label="Send message"
+      >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+          </svg>
+        </button>
+      </form>
+    </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const chatForm = document.getElementById("chat-form");
+        const messagesContainer = document.getElementById("messages-container");
+
+        // Auto-scroll to bottom of messages
+        const scrollToBottom = () => {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        };
+
+        scrollToBottom();
+
+        chatForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const toUser = document.getElementById("to_user").value;
+          const messageInput = document.getElementById("body");
+          const messageBody = messageInput.value.trim();
+
+          if (!messageBody || !toUser) return;
+
+          const csrfToken = document.querySelector(
+            "[name=csrfmiddlewaretoken]"
+          ).value;
+
+          try {
+            // Optimistic UI update
+            const tempId = Date.now();
+            messagesContainer.innerHTML += `
+            <div class="flex justify-end" id="temp-${tempId}">
+                <div class="max-w-[65%] rounded-lg p-3 bg-[#005C4B]">
+                <p class="text-[#E9EDEF]">${messageBody}</p>
+                <p class="text-xs text-[#8696A0] text-right mt-1">
+                    Just now
+                    <span class="ml-1">✓</span>
+                </p>
+                </div>
+            </div>
+            `;
+            scrollToBottom();
+            messageInput.value = "";
+
+            const response = await fetch("{% url 'send-message' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: new URLSearchParams({
+                    to_user: toUser,
+                    body: messageBody,
+                }),
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || "Failed to send message");
+            }
+
+            // Show success notification
+            showNotification(`${data.message}`, "bg-green-500");
+            
+            // Update message status if needed (e.g., change ✓ to ✓✓ when read)
+            // const tempElement = document.getElementById(`temp-${tempId}`);
+            // if (tempElement && data.message_id) {
+            //   tempElement.dataset.messageId = data.message_id;
+            //   // You could update the checkmark status here if you get read status from server
+            // }
+
+        } catch (error) {
+            console.error("Error:", error);
+            // Show error notification
+            showNotification(error.message || "Failed to send message", "bg-red-500");
+            
+            // Optionally remove the temporary message if sending failed
+            // const tempElement = document.getElementById(`temp-${tempId}`);
+            // if (tempElement) tempElement.remove();
+        }
+
+        // Helper function to show notifications
+        function showNotification(message, bgColor = "bg-blue-500") {
+            const notification = document.createElement("div");
+            notification.className = `fixed bottom-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        });
+
+        // Focus input when chat is opened
+        if (document.getElementById("body")) {
+          document.getElementById("body").focus();
+        }
+      });
+    </script>
+{% endblock content %} 

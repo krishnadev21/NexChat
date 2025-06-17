@@ -1,0 +1,133 @@
+{% extends "chat/base.html" %}
+
+{% block content %}
+  <div class="flex justify-center my-4">
+    <!-- Chats sidebar - Added relative positioning here -->
+    <div class="relative w-[90%] max-w-[400px] min-w-[300px] border-r border-[#2F3B43] bg-[#111B21] rounded-lg shadow-md">  <!-- Changed width and added rounded/shadow -->
+      <div class="p-4 border-b border-[#2F3B43]">
+
+        <!-- Header -->
+        <div class="flex justify-between items-center p-4">
+          <!-- Left side - Title -->
+          <h2 class="text-xl font-semibold text-[#E9EDEF]">Groups</h2>
+          
+          <!-- Right side - Icons -->
+          <div class="flex items-center gap-4">
+            <!-- Chat Icon -->
+            <form method="get" action="{% url 'conversations-list' %}">
+              {% csrf_token %}
+              <button type="submit" class="text-[#fff] hover:text-[#d1d5db] transition-colors cursor-pointer" title="Groups">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                </svg>
+              </button>
+            </form>
+
+            <!-- Logout Icon -->
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="text-[#fff] hover:text-[#d1d5db] transition-colors cursor-pointer" title="Logout">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+        
+        <!-- Search Input -->
+        <form method="get" action="" class="mt-3">
+          <div class="relative">
+            <input
+              type="text"
+              name="search"
+              value="{{ search_query|default:'' }}"
+              placeholder="Search groups..."
+              class="w-full bg-[#202C33] text-[#E9EDEF] py-2 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-[#005C4B] rounded-full"
+              autocomplete="off"
+            />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 text-[#8696A0] absolute left-3 top-2.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </form>
+      </div>
+
+      <!-- Conversations list -->
+      <ul class="overflow-y-auto h-[calc(100vh-180px)] pb-4">  <!-- Adjusted height and added padding -->
+        {% for group in groups %} 
+        
+          <li class="border-b border-[#2F3B43]">
+            <a
+              href="{% url 'group' group.id %}"
+              class="block hover:bg-[#202C33] transition-colors duration-200 p-3"
+            >
+              <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-3 min-w-0">
+                  <!-- Profile picture -->
+                  <div class="relative flex-shrink-0">
+                    <img
+                      src="{{ group.avatar.url|default:'/media/default.jpg' }}"
+                      alt="{{ group.name }}"
+                      class="w-12 h-12 rounded-full object-cover"
+                      loading="lazy"
+                      width="48"
+                      height="48"
+                      onerror="this.src='/static/images/default-avatar.jpg'"
+                    />
+                    {% comment %} {% if conversation.unread_count > 0 %}
+                        <span class="absolute -top-1 -right-1 bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {{ conversation.unread_count }} 
+                        </span>
+                    {% endif %} {% endcomment %}
+                  </div>
+
+                  <!-- User info -->
+                  <div class="min-w-0">
+                    <p class="font-medium text-[#E9EDEF] truncate">
+                      {{ group.name }}
+                    </p>
+                    <p class="text-sm text-[#8696A0] truncate">
+                      {{ group.last_message.message|truncatechars:30 }} 
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Timestamp -->
+                <div class="flex flex-col items-end space-y-1">
+                  <span class="text-xs text-[#8696A0] whitespace-nowrap">
+                    {{ group.last_message.timestamp|timesince }} ago 
+                  </span>
+                  {% comment %} {% if message.unread > 0 %}
+                  <span class="sr-only">Unread messages</span>
+                  {% endif %} {% endcomment %}
+                </div>
+              </div>
+            </a>
+          </li>
+        {% empty %}
+          {% if search_query %}
+            <li class="text-center py-8 text-[#8696A0]">No users found for "{{ search_query }}"</li>
+          {% else %}
+            <li class="text-center py-8 text-[#8696A0]">No messages yet</li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+
+      <!-- Fixed Green + Button -->
+      <div class="sticky bottom-4 right-4 float-right mr-4 mb-4">  <!-- Changed to sticky positioning -->
+        <a href="{% url 'create-group' %}" class="bg-[#00A884] text-white rounded-full p-3 shadow-lg hover:bg-[#008069] transition-colors duration-200 flex items-center justify-center w-12 h-12" title="Create group">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
