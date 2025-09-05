@@ -1,0 +1,310 @@
+{% extends "chat/base.html" %} 
+{% block title %} NexChat | Create Group {% endblock title %}
+
+{% block content %}
+<div class="min-h-screen bg-[#3B4A54] flex flex-col relative" id="user-selection-section">
+  <!-- Header -->
+  <div class="bg-[#202C33] p-4 shadow-lg">
+    <div class="flex items-center space-x-4">
+      <a href="#" class="text-white">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </a>
+      <h1 class="text-xl font-medium text-white">New group</h1>
+    </div>
+  </div>
+
+  <!-- Step 1: Select Participants -->
+  <div class="flex-1 p-4 relative">
+    <!-- Search Bar -->
+    <div class="mb-4">
+      <div class="relative">
+        <input
+          type="text"
+          id="user-search"
+          placeholder="Search users"
+          class="w-full bg-[#202C33] text-white px-10 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-[#00A884]"
+        >
+        <svg class="w-5 h-5 absolute left-3 top-4 text-[#8696A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Selected Users Preview -->
+    <div id="selected-users" class="flex gap-4 pb-2 mb-2 overflow-hidden overflow-x-auto hidden">
+      <!-- Selected users will appear here -->
+    </div>
+
+    <!-- Users List with vertical scrolling -->
+    <div class="bg-[#202C33] rounded-lg flex flex-col overflow-hidden overflow-y-auto user-list max-h-[calc(100vh-160px)]">
+      <!-- Sample users - in a real app these would come from a backend -->
+      {% for user in users %}
+        <label class="flex items-center p-3 border-b border-[#2A3942] hover:bg-[#2A3942] cursor-pointer transition-colors transition-all duration-200 ease-in-out user-item">
+            <input
+                type="checkbox"
+                name="participants"
+                value="{{ user.id }}"
+                class="hidden peer"
+            >
+            <img
+                src="{{ user.avatar.url|default:'/media/default.jpg' }}"
+                alt="John Doe"
+                class="w-12 h-12 rounded-full object-cover mr-3"
+            >
+            <div class="flex-1">
+                <h3 class="text-white font-medium">{{ user.username }}</h3>
+                <p class="text-[#8696A0] text-sm">{{user.email }}</p>
+            </div>
+            <div class="w-5 h-5 border-2 border-[#8696A0] rounded-full peer-checked:bg-[#00A884] peer-checked:border-[#00A884] transition-colors">
+                <svg class="w-4 h-4 text-white hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                </svg>
+            </div>
+        </label>
+      {% endfor %}  
+    </div>
+  </div>
+
+  <!-- Floating Next Button -->
+  <div class="fixed bottom-4 right-4">
+    <button
+        id="next-btn"
+        class="bg-[#00A884] text-white py-4 px-4 rounded-full font-medium disabled:bg-[#00A88480] disabled:cursor-not-allowed shadow-lg transition-transform hover:scale-105"
+        disabled
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+        </svg>
+    </button>
+  </div>
+</div>
+
+<!-- Step 2: Group Details Form (Hidden Initially) -->
+<form id="group-details-form" method="POST" action="" enctype="multipart/form-data" class="hidden">
+  {% csrf_token %}
+  <input type="hidden" name="participants" id="selected-participants-input">
+  
+  <div class="min-h-screen bg-[#3B4A54] flex flex-col">
+    <!-- Header -->
+    <div class="bg-[#202C33] p-4 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <button type="button" id="back-to-users" class="text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+          <h1 class="text-xl font-medium text-white">New group</h1>
+        </div>
+        <!-- Create button -->
+        <button type="submit" class="text-[#00A884] font-medium">Create</button>
+      </div>
+    </div>
+
+    <div class="flex-1 p-4">
+      <!-- Group Avatar -->
+      <div class="flex flex-col items-center mb-6">
+        <label for="avatar" class="cursor-pointer">
+          <div class="relative">
+            <img
+              id="avatar-preview"
+              src="/media/default.jpg"
+              alt="Group avatar"
+              class="w-24 h-24 rounded-full object-cover border border-[#202C33]"
+            >
+            <div class="absolute -bottom-1 -right-1 bg-[#00A884] rounded-full p-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-white">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+              </svg>
+            </div>
+          </div>
+        </label>
+        {{ form.avatar }} {% comment %} Example --> <input type="file" id="avatar" name="avatar" accept="image/*" class="hidden"> {% endcomment %}
+        <span class="text-[#8696A0] text-sm mt-2">Add group icon</span>
+      </div>
+
+      <!-- Group Name -->
+      <div class="mb-4">
+        {{ form.name }}
+        {% if form.name.errors %}
+        <p class="text-sm text-red-400 mt-1">{{ form.name.errors|striptags }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Description -->
+      <div class="mb-4">
+        {{ form.description }}
+      </div>
+
+      <!-- Selected Participants List -->
+      <div class="bg-[#202C33] rounded-lg">
+        <h3 class="text-[#8696A0] text-sm px-4 py-2">Members</h3>
+        <div id="final-participants-list">
+          <!-- Participants will be listed here -->
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const userSearch = document.getElementById('user-search');
+  const userItems = document.querySelectorAll('.user-item');
+  const selectedUsersDiv = document.getElementById('selected-users');
+  const nextBtn = document.getElementById('next-btn');
+  const groupDetailsForm = document.getElementById('group-details-form');
+  const userSelectionSection = document.getElementById('user-selection-section');
+  const selectedParticipantsInput = document.getElementById('selected-participants-input');
+  const finalParticipantsList = document.getElementById('final-participants-list');
+  const backToUsersBtn = document.getElementById('back-to-users');
+  const avatarInput = document.getElementById('avatar');
+  const avatarPreview = document.getElementById('avatar-preview');
+
+  let selectedUsers = new Set();
+
+  // Search functionality
+  userSearch.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    userItems.forEach(item => {
+      const username = item.querySelector('h3').textContent.toLowerCase();
+      const handle = item.querySelector('p').textContent.toLowerCase();
+      if (username.includes(searchTerm) || handle.includes(searchTerm)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  });
+
+  // User selection
+  userItems.forEach(item => {
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    const userId = checkbox.value;
+    const userName = item.querySelector('h3').textContent;
+
+    checkbox.addEventListener('change', function() {
+      if (this.checked) {
+        selectedUsers.add(userId);
+      } else {
+        selectedUsers.delete(userId);
+      }
+      updateSelectedUsers();
+      updateNextButton();
+    });
+  });
+
+  function updateSelectedUsers() {
+    selectedUsersDiv.innerHTML = '';
+    if (selectedUsers.size > 0) {
+      selectedUsersDiv.classList.remove('hidden');
+      selectedUsers.forEach(userId => {
+        const userItem = Array.from(userItems).find(item => 
+          item.querySelector('input').value === userId
+        );
+        if (userItem) {
+          const userName = userItem.querySelector('h3').textContent;
+          const userAvatar = userItem.querySelector('img').src;
+          const chip = document.createElement('div');
+          chip.className = 'selected-user-chip';
+          chip.style.flexShrink = '0';
+          chip.innerHTML = `
+            <div class="relative flex flex-col items-center">
+              <div class="relative">
+                <img src="${userAvatar}" alt="${userName}" class="w-12 h-12 rounded-full object-cover">
+                <span 
+                  class="absolute -bottom-1 -right-1 flex items-center justify-center 
+                        w-4 h-4 rounded-full bg-gray-300 text-gray-500 hover:text-black text-sm font-bold 
+                        cursor-pointer shadow-md remove-user" 
+                  data-user-id="${userId}">
+                  ×
+                </span>
+              </div>
+              <div class="mt-2 text-sm text-center text-white">
+                ${userName.slice(0, 5)}
+              </div>
+            </div>
+          `;
+          selectedUsersDiv.appendChild(chip);
+        }
+      });
+    } else {
+      selectedUsersDiv.classList.add('hidden');
+    }
+  }
+
+  function updateNextButton() {
+    nextBtn.disabled = selectedUsers.size === 0;
+  }
+
+  // Remove user from selection
+  selectedUsersDiv.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-user')) {
+      const userId = e.target.dataset.userId;
+      const checkbox = document.querySelector(`input[value="${userId}"]`);
+      if (checkbox) {
+        checkbox.checked = false;
+        selectedUsers.delete(userId);
+        updateSelectedUsers();
+        updateNextButton();
+      }
+    }
+  });
+
+  // Next button click
+  nextBtn.addEventListener('click', function() {
+    // Populate the hidden input with selected user IDs
+    selectedParticipantsInput.value = Array.from(selectedUsers).join(',');
+    
+    // Populate final participants list
+    finalParticipantsList.innerHTML = '';
+    selectedUsers.forEach(userId => {
+      const userItem = Array.from(userItems).find(item => 
+        item.querySelector('input').value === userId
+      );
+      if (userItem) {
+        const userName = userItem.querySelector('h3').textContent;
+        const userAvatar = userItem.querySelector('img').src;
+        const participantDiv = document.createElement('div');
+        participantDiv.className = 'flex items-center p-3 border-b border-[#2A3942]';
+        participantDiv.innerHTML = `
+          <img src="${userAvatar}" alt="${userName}" class="w-10 h-10 rounded-full object-cover mr-3">
+          <div class="flex-1">
+            <h3 class="text-white font-medium">${userName}</h3>
+          </div>
+        `;
+        finalParticipantsList.appendChild(participantDiv);
+      }
+    });
+
+    // Show group details form, hide user selection
+    userSelectionSection.classList.add('hidden');
+    groupDetailsForm.classList.remove('hidden');
+  });
+
+  // Back to user selection
+  backToUsersBtn.addEventListener('click', function() {
+    groupDetailsForm.classList.add('hidden');
+    userSelectionSection.classList.remove('hidden');
+  });
+
+  // Avatar preview
+  avatarInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        avatarPreview.src = e.target.result;
+        console.log(e.target.result);
+        
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+});
+</script>
+{% endblock content %}

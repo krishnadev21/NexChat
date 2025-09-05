@@ -27,7 +27,7 @@ class CustomUser(AbstractUser):
                 code='invalid_username'
             )
         ],
-        help_text='Required. 20 characters or fewer. Letters, digits and _ only.'
+        help_text='Required 20 characters or fewer. Letters, digits and _ only.'
     )
     
     # Email field (already unique)

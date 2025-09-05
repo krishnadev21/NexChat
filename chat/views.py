@@ -138,30 +138,49 @@ class CreateGroupView(LoginRequiredMixin, View):
 
     def get(self, request):
         form = RoomForm(user=request.user)
-        return render(request, 'chat/create_group.html', {'form': form})
+        users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
+
+        return render(request, 'chat/new_create_group.html', {
+            'form': form,
+            'users': users
+        })
     
     def post(self, request):
-        form = RoomForm(request.POST, request.FILES, user=request.user)  # Keep this form instance
+        print(request.POST)
+        form = RoomForm(request.POST, request.FILES, user=request.user)
         
         try:
-            if form.is_valid():  # This checks your clean_name() automatically
+            if form.is_valid():
                 room = form.save(commit=False)
                 room.admin = request.user
                 room.save()
-                form.save_m2m()
                 
-                if request.user not in room.participants.all():
+                # Add participants from the cleaned data
+                participants = form.cleaned_data['participants']
+                room.participants.add(*participants)
+                
+                # Add current user if not already included
+                if request.user not in participants:
                     room.participants.add(request.user)
                 
                 messages.success(request, f"Group '{room.name}' created successfully!")
                 return redirect('groups')
             
-            # If NOT valid, render with existing form (which contains errors)
-            return render(request, 'chat/create_group.html', {'form': form})
+            # Handle invalid form
+            print('form is not valid')
+            users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
+            return render(request, 'chat/new_create_group.html', {
+                'form': form,
+                'users': users
+            })
             
         except Exception as e:
             messages.error(request, f"Error creating group: {str(e)}")
-            return render(request, 'chat/create_group.html', {'form': form})
+            users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
+            return render(request, 'chat/new_create_group.html', {
+                'form': form,
+                'users': users
+            })
         
 class GroupListView(LoginRequiredMixin, View):
     login_url = '/'  # Redirect URL if not authenticated

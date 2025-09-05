@@ -12,36 +12,9 @@ from django.core.validators import FileExtensionValidator
 
 
 class RoomForm(forms.ModelForm):
-    avatar = forms.ImageField(
-        widget=forms.FileInput(attrs={
-            'accept': 'image/*',
-            'class': (
-                'block w-full px-3 py-2 border border-gray-300 rounded-full shadow-md '
-                'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 '
-                'file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 '
-                'file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 '
-                'hover:file:bg-indigo-100 cursor-pointer text-gray-500'
-            ),
-            'placeholder': 'Upload avatar (300×300)',
-        }),
-        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])],
-        required=False
-    )
-
-    participants = forms.ModelMultipleChoiceField(
-        queryset=CustomUser.objects.none(),  # Temporary empty queryset
-        widget=forms.SelectMultiple(attrs={
-            'class': (
-                'block w-full rounded-md border border-gray-300 py-2 pl-3 pr-8 shadow-sm '
-                'text-gray-400 placeholder-gray-400 text-sm leading-6 '
-                'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 '
-                'hover:border-gray-400 transition-colors duration-150 '
-                'cursor-pointer min-h-[42px]'
-            ),
-            'multiple': 'multiple',
-        }),
-        required=True,
-        help_text='Hold Ctrl/Cmd to select multiple users',
+    participants = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=True
     )
 
     admin = forms.ModelChoiceField(
@@ -51,31 +24,34 @@ class RoomForm(forms.ModelForm):
         required=False
     )
 
-
     class Meta:
         model = RoomModel
         fields = ['name', 'participants', 'admin', 'avatar', 'description']
         widgets = {
+            'avatar': forms.ClearableFileInput(attrs={
+                'id': 'avatar',  # Important to match your JavaScript and label
+                'name': 'avatar', # Important for request.FILES
+                'class': 'hidden',
+                'accept': 'image/*',
+                'required': False,
+            }),
+
             'name': forms.TextInput(attrs={
+                'name': 'name', # Optional django assign default name 
                 'autofocus': True,
-                # 'class': 'form-control',
-                'placeholder': 'Room name',
+                'placeholder': 'Group name',
+                'required': True,
                 'class': (
-                    'appearance-none block w-full px-3 py-2 border border-gray-300 rounded-full '
-                    'shadow-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 '
-                    'focus:border-indigo-500 sm:text-sm text-gray-400'  
+                    'w-full text-white px-4 py-3 border-b-2 border-gray-500 focus:outline-none focus:border-b-2 focus:border-[#00A884]'
                 ), 
             }),
 
-            'description': forms.Textarea(attrs={
-                'rows': 3,
-                'placeholder': 'Description...',
+            'description': forms.TextInput(attrs={
+                'name': 'description', # Optional django assign default name 
+                'required': False,
+                'placeholder': 'Add description (optional)',
                 'class': (
-                    'block w-full rounded-md border border-gray-300 shadow-sm py-2 px-3 '
-                    'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 '
-                    'text-gray-400 placeholder-gray-400 sm:text-sm sm:leading-6 '
-                    'transition duration-150 ease-in-out hover:border-gray-400 '
-                    'resize-y min-h-[100px]'
+                    'w-full text-white px-4 py-3 border-b-2 border-gray-500 focus:outline-none focus:border-b-2 focus:border-[#00A884]'
                 ),
             }),
         }
@@ -108,20 +84,36 @@ class RoomForm(forms.ModelForm):
         
         return name
 
-    def clean_participants(self):
-        participants = self.cleaned_data.get('participants')
-        if not participants:
-            raise ValidationError("At least one participant is required.")
-        return participants
-
-    # def clean(self):
-    #     cleaned_data = super().clean()
-    #     admin = cleaned_data.get('admin')
-    #     participants = cleaned_data.get('participants')
+    def clean_participant_ids(self):
+        """Validate the participant IDs but return the original string"""
+        ids_string = self.cleaned_data.get('participants', '')
+        if not ids_string:
+            raise forms.ValidationError("Please select at least one participant.")
         
-    #     if admin and self.user not in participants:
-    #         raise ValidationError({
-    #             'admin': "Admin must be one of the participants."
-    #         })
+        try:
+            # Convert comma-separated string to list of integers for validation
+            participant_ids = [int(id.strip()) for id in ids_string.split(',') if id.strip()]
+            
+            # Validate that all IDs correspond to real users
+            valid_users_count = CustomUser.objects.filter(id__in=participant_ids).count()
+            if valid_users_count != len(participant_ids):
+                raise forms.ValidationError("Invalid participant selected.")
+                
+            # Return the original string, not the objects
+            return ids_string
+            
+        except (ValueError, TypeError):
+            raise forms.ValidationError("Invalid participant format.")
+    
+    def clean(self):
+        """Add the participants to the form's cleaned_data after validation"""
+        cleaned_data = super().clean()
         
-    #     return cleaned_data
+        # Convert the participant_ids string to actual user objects
+        # after the main validation is complete
+        ids_string = cleaned_data.get('participants')
+        if ids_string:
+            participant_ids = [int(id.strip()) for id in ids_string.split(',') if id.strip()]
+            cleaned_data['participants'] = CustomUser.objects.filter(id__in=participant_ids)
+        
+        return cleaned_data
