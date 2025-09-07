@@ -146,7 +146,6 @@ class CreateGroupView(LoginRequiredMixin, View):
         })
     
     def post(self, request):
-        print(request.POST)
         form = RoomForm(request.POST, request.FILES, user=request.user)
         
         try:
@@ -163,7 +162,7 @@ class CreateGroupView(LoginRequiredMixin, View):
                 if request.user not in participants:
                     room.participants.add(request.user)
                 
-                messages.success(request, f"Group '{room.name}' created successfully!")
+                messages.success(request, f"{room.name} created successfully")
                 return redirect('groups')
             
             # Handle invalid form

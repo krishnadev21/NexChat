@@ -36,13 +36,14 @@
         </div>
         
         <!-- Search Input -->
-        <form method="get" action="" class="mt-3">
+        <!-- <form method="get" action="" class="mt-3"> -->
           <div class="relative">
             <input
               type="text"
               name="search"
               value="{{ search_query|default:'' }}"
               placeholder="Search groups..."
+              id="user-search"
               class="w-full bg-[#202C33] text-[#E9EDEF] py-2 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-[#005C4B] rounded-full"
               autocomplete="off"
             />
@@ -56,14 +57,13 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-        </form>
+        <!-- </form> -->
       </div>
 
       <!-- Conversations list -->
       <ul class="overflow-y-auto h-[calc(100vh-180px)] pb-4">  <!-- Adjusted height and added padding -->
-        {% for group in groups %} 
-        
-          <li class="border-b border-[#2F3B43]">
+        {% for group in groups %}         
+          <li class="border-b border-[#2F3B43] user-item">
             <a
               href="{% url 'group' group.id %}"
               class="block hover:bg-[#202C33] transition-colors duration-200 p-3"
@@ -90,7 +90,7 @@
 
                   <!-- User info -->
                   <div class="min-w-0">
-                    <p class="font-medium text-[#E9EDEF] truncate">
+                    <p class="font-medium text-[#E9EDEF] truncate group-name">
                       {{ group.name }}
                     </p>
                     <p class="text-sm text-[#8696A0] truncate">
@@ -102,7 +102,9 @@
                 <!-- Timestamp -->
                 <div class="flex flex-col items-end space-y-1">
                   <span class="text-xs text-[#8696A0] whitespace-nowrap">
-                    {{ group.last_message.timestamp|timesince }} ago 
+                    {% if group.last_message.message %}
+                      {{ group.last_message.timestamp|timesince }} ago 
+                    {% endif %}
                   </span>
                   {% comment %} {% if message.unread > 0 %}
                   <span class="sr-only">Unread messages</span>
@@ -130,4 +132,24 @@
       </div>
     </div>
   </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const userSearch = document.getElementById('user-search');
+    const userItems = document.querySelectorAll('.user-item');
+  
+    // Search functionality
+    userSearch.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      userItems.forEach(item => {
+        const groupname = item.querySelector('.group-name').textContent.toLowerCase();
+        if (groupname.includes(searchTerm)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+  })
+</script>
 {% endblock content %}
