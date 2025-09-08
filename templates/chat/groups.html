@@ -144,7 +144,7 @@
       userItems.forEach(item => {
         const groupname = item.querySelector('.group-name').textContent.toLowerCase();
         if (groupname.includes(searchTerm)) {
-          item.style.display = 'flex';
+          item.style.display = '';
         } else {
           item.style.display = 'none';
         }
