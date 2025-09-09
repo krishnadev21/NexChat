@@ -140,7 +140,7 @@ class CreateGroupView(LoginRequiredMixin, View):
         form = RoomForm(user=request.user)
         users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
 
-        return render(request, 'chat/new_create_group.html', {
+        return render(request, 'chat/create_group.html', {
             'form': form,
             'users': users
         })
@@ -162,13 +162,13 @@ class CreateGroupView(LoginRequiredMixin, View):
                 if request.user not in participants:
                     room.participants.add(request.user)
                 
-                messages.success(request, f"{room.name} created successfully")
+                messages.success(request, f"{room.name} created")
                 return redirect('groups')
             
             # Handle invalid form
             print('form is not valid')
             users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
-            return render(request, 'chat/new_create_group.html', {
+            return render(request, 'chat/create_group.html', {
                 'form': form,
                 'users': users
             })
@@ -176,7 +176,7 @@ class CreateGroupView(LoginRequiredMixin, View):
         except Exception as e:
             messages.error(request, f"Error creating group: {str(e)}")
             users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
-            return render(request, 'chat/new_create_group.html', {
+            return render(request, 'chat/create_group.html', {
                 'form': form,
                 'users': users
             })

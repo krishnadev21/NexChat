@@ -8,6 +8,13 @@
       <div class="p-3 border-b border-[#2F3B43] bg-[#202C33] flex justify-between items-center">
         <div>
           <div class="flex items-center space-x-3">
+            <!-- Back button -->
+            <a href="{% url 'conversations-list' %}" class="text-white" title="Back"> 
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+            </a>
+            
             <img
               src="{{ conversation.partner.avatar.url|default:'/media/default.jpg' }}"
               alt="{{ conversation.partner.username }}"
@@ -111,7 +118,7 @@
       {% empty %}
         <div class="text-center text-[#8696A0] py-8">No messages yet</div>
       {% endfor %}
-  </div>
+    </div>
 
     <!-- Message input -->
     <div class="p-3 bg-[#202C33]">
@@ -145,7 +152,7 @@
         </button>
       </form>
     </div>
-    </div>
+  </div>
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
