@@ -11,8 +11,16 @@
 
         <!-- Header -->
         <div class="flex justify-between items-center p-4">
-          <!-- Left side - Title -->
-          <h2 class="text-xl font-semibold text-[#E9EDEF]">Search</h2>
+          <div class="flex items-center space-x-3">
+            <!-- Back button -->
+            <a href="{% url 'conversations-list' %}" class="text-white" title="Back">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+            </a>
+            <!-- Left side - Title -->
+            <h2 class="text-xl font-semibold text-[#E9EDEF]">Search</h2>
+          </div>
           
           <!-- Right side - Icons -->
           <div class="flex items-center gap-4">
@@ -39,37 +47,36 @@
         </div>
         
         <!-- Search Bar -->
-        <form method="get" action="{% url 'search-users' %}" class="mt-3">
-          <div class="relative">
-            <input
-              type="text"
-              name="search"
-              value="{{ search_query|default:'' }}"
-              placeholder="Search by username or email..."
-              class="w-full bg-[#202C33] text-[#E9EDEF] rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-[#005C4B]"
-              autocomplete="off"
+        <div class="relative">
+          <input
+            type="text"
+            id="user-search"
+            name="search"
+            value="{{ search_query|default:'' }}"
+            placeholder="Search by username or email..."
+            class="w-full bg-[#202C33] text-[#E9EDEF] rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-[#005C4B]"
+            autocomplete="off"
+          />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 text-[#8696A0] absolute left-3 top-2.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 text-[#8696A0] absolute left-3 top-2.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-        </form>
+          </svg>
+        </div>
       </div>
 
       <ul class="overflow-y-auto h-[calc(100vh-65px)]">
         {% for user in searched_users %}
-          <li class="border-b border-[#2F3B43]">
+          <li class="border-b border-[#2F3B43] user-item">
             <a
               href="{% url 'conversation' user.id %}"
               class="block hover:bg-[#202C33] transition-colors duration-200 p-3"
@@ -91,11 +98,11 @@
 
                   <!-- User info -->
                   <div class="min-w-0">
-                    <p class="font-medium text-[#E9EDEF] truncate">
+                    <p class="font-medium text-[#E9EDEF] truncate username">
                       {{ user.username }}
                     </p>
                     {% if user.email %}
-                      <p class="text-xs text-[#8696A0] truncate">
+                      <p class="text-xs text-[#8696A0] truncate email">
                         {{ user.email }}
                       </p>
                     {% endif %}
@@ -116,4 +123,25 @@
       </ul>
     </div>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const userSearch = document.getElementById('user-search');
+      const userItems = document.querySelectorAll('.user-item');
+    
+      // Search functionality
+      userSearch.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        userItems.forEach(item => {
+          const username = item.querySelector('.username').textContent.toLowerCase();
+          const email = item.querySelector('.email').textContent.toLowerCase();
+          if ((username.includes(searchTerm)) || (email.includes(searchTerm))) {
+            item.style.display = '';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      });
+    })
+  </script>
 {% endblock content %}
