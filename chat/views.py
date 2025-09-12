@@ -25,20 +25,11 @@ class ConversationsListView(LoginRequiredMixin, View):
     redirect_field_name = 'next'  # Default (optional)
 
     def get(self, request):
-        search_query = request.GET.get('search', '').strip()
         conversations_list = []
         
         try:
-            search_partner = None
-            if search_query:
-                # Search by username (case-insensitive)
-                search_partner = CustomUser.objects.filter(
-                    username__icontains=search_query
-                ).exclude(id=request.user.id).first()  # Get first match or None
-            
             conversations_list = Messages.getConversationsList(
-                user=request.user, 
-                search_partner=search_partner
+                user=request.user
             )
         
         except Exception as e:
@@ -46,7 +37,6 @@ class ConversationsListView(LoginRequiredMixin, View):
             conversations_list = []  # Ensure we always have a list
         
         return render(request, 'chat/conversations_list.html', {
-            'search_query': search_query,
             'conversations': conversations_list
         })
     

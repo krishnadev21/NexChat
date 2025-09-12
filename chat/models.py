@@ -56,7 +56,7 @@ class Messages(models.Model):  # Changed to singular form (convention for model 
         return sender_msg, recipient_msg
 
     @classmethod
-    def getConversationsList(cls, user, search_partner=None):
+    def getConversationsList(cls, user):
         """
         Returns all conversations for a user with the latest message info
         and unread counts for each conversation partner.
@@ -66,12 +66,6 @@ class Messages(models.Model):  # Changed to singular form (convention for model 
             Q(received_messages__sender=user) | 
             Q(sent_messages__recipient=user)
         ).distinct()
-        
-        # Filter by search partner if provided
-        if search_partner:
-            partners = partners.filter(id=search_partner.id)
-            if not partners.exists():
-                return []  # Return empty list if no matching partner
         
         conversations = []
         
