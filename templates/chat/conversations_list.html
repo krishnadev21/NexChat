@@ -90,7 +90,7 @@
 
                     <!-- User info -->
                     <div class="min-w-0">
-                      <p class="font-medium text-[#E9EDEF] truncate user-name">
+                      <p class="font-medium text-[#E9EDEF] truncate username">
                         {{ conversation.partner.username }}
                       </p>
                       <p class="text-sm text-[#8696A0] truncate">
@@ -146,7 +146,7 @@
         let foundCount = 0;
         
         userItems.forEach(item => {
-          const username = item.querySelector('.user-name').textContent.toLowerCase();
+          const username = item.querySelector('.username').textContent.toLowerCase();
           if (username.includes(searchTerm)) {
             item.style.display = '';
             foundCount++;

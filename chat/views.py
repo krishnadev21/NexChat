@@ -45,27 +45,18 @@ class SearchUsersView(LoginRequiredMixin, View):
     redirect_field_name = 'next'  # Default (optional)
 
     def get(self, request):
-        search_query = request.GET.get('search', '').strip()
+        # search_query = request.GET.get('search', '').strip()
         
         try:
-            if search_query:
-                # Search by username or email (case-insensitive)
-                searched_users = CustomUser.objects.filter(
-                    Q(username__icontains=search_query) |
-                    Q(email__icontains=search_query)
-                ).exclude(id=request.user.id)  # Exclude current user
-
-            else:
-                # Return random users (excluding current user)
-                searched_users = CustomUser.objects.exclude(
-                    id=request.user.id
-                ).order_by('username')[:20]  # Limit to 20 random users
+            searched_users = CustomUser.objects.exclude(
+                id=request.user.id
+            ).order_by('username')[:20]  # Limit to 20 random users
             
         except Exception as e:
             messages.error(request, f"{str(e)}")
         
         return render(request, 'chat/search_users.html', {
-            'search_query': search_query,
+            # 'search_query': search_query,
             'searched_users': searched_users,
         })
 

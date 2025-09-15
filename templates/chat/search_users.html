@@ -112,14 +112,11 @@
             </a>
           </li>
         {% empty %}
-          <li class="text-center py-8 text-[#8696A0]">
-            {% if search_query %}
-              No users found for "{{ search_query }}"
-            {% else %}
-              Start typing to search users
-            {% endif %}
-          </li>
+          <li class="text-center py-8 text-[#8696A0]">No users yet</li>
         {% endfor %}
+
+        <!-- No user found for search input -->
+        <li class="text-center py-8 text-[#8696A0]" id="not-found-message"></li>
       </ul>
     </div>
   </div>
@@ -128,20 +125,41 @@
     document.addEventListener('DOMContentLoaded', () => {
       const userSearch = document.getElementById('user-search');
       const userItems = document.querySelectorAll('.user-item');
-    
+      const notFoundMessage = document.getElementById('not-found-message');
+      
+      // Initially hide the not found message
+      notFoundMessage.style.display = 'none';
+      
       // Search functionality
       userSearch.addEventListener('input', function() {
         const searchTerm = this.value.toLowerCase();
+        let foundCount = 0;
+        
         userItems.forEach(item => {
           const username = item.querySelector('.username').textContent.toLowerCase();
           const email = item.querySelector('.email').textContent.toLowerCase();
-          if ((username.includes(searchTerm)) || (email.includes(searchTerm))) {
+          if (username.includes(searchTerm) || email.includes(searchTerm)) {
             item.style.display = '';
+            foundCount++;
           } else {
             item.style.display = 'none';
           }
         });
+        
+        // Show not found message if no users match the search
+        if (foundCount === 0 && searchTerm.length > 0) {
+          notFoundMessage.textContent = `No users found for '${userSearch.value}'`
+          notFoundMessage.style.display = '';
+        } else {
+          notFoundMessage.style.display = 'none';
+        }
+        
+        // If search is empty, ensure not found message is hidden
+        if (searchTerm.length === 0) {
+          notFoundMessage.textContent = ''
+          notFoundMessage.style.display = 'none';
+        }
       });
-    })
+  });
   </script>
 {% endblock content %}
