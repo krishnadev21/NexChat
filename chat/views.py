@@ -45,8 +45,6 @@ class SearchUsersView(LoginRequiredMixin, View):
     redirect_field_name = 'next'  # Default (optional)
 
     def get(self, request):
-        # search_query = request.GET.get('search', '').strip()
-        
         try:
             searched_users = CustomUser.objects.exclude(
                 id=request.user.id
@@ -56,8 +54,7 @@ class SearchUsersView(LoginRequiredMixin, View):
             messages.error(request, f"{str(e)}")
         
         return render(request, 'chat/search_users.html', {
-            # 'search_query': search_query,
-            'searched_users': searched_users,
+            'searched_users': searched_users
         })
 
 class ConversationView(LoginRequiredMixin, View):
@@ -167,16 +164,11 @@ class GroupListView(LoginRequiredMixin, View):
     redirect_field_name = 'next'  # Default (optional)
 
     def get(self, request):
-        search_query = request.GET.get('search', '').strip()
-
         try:
             # Get groups where user is a participant
             groups = RoomModel.objects.filter(
                 participants=request.user
             ).distinct().order_by('-created_at')
-
-            if search_query:
-                groups = groups.filter(name__icontains=search_query)
 
             # Prefetch the last message for each group
             for group in groups:
@@ -187,8 +179,7 @@ class GroupListView(LoginRequiredMixin, View):
             groups = []  # Fallback to empty list if error occurs
         
         return render(request, 'chat/groups.html', {
-            'groups': groups,
-            'search_query': search_query
+            'groups': groups
         })
 
 class GroupView(LoginRequiredMixin, View):

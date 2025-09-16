@@ -38,10 +38,10 @@
     </div>
 
     <!-- Users List with vertical scrolling -->
-    <div class="bg-[#202C33] rounded-lg flex flex-col overflow-hidden overflow-y-auto user-list max-h-[calc(100vh-160px)]">
+    <div class="rounded-lg flex flex-col overflow-hidden overflow-y-auto user-list max-h-[calc(100vh-160px)]">
       <!-- Sample users - in a real app these would come from a backend -->
       {% for user in users %}
-        <label class="flex items-center p-3 border-b border-[#2A3942] hover:bg-[#2A3942] cursor-pointer transition-colors transition-all duration-200 ease-in-out user-item">
+        <label class="flex items-center p-3 border-b border-[#2A3942] bg-[#202C33]  hover:bg-[#2A3942] cursor-pointer transition-colors transition-all duration-200 ease-in-out user-item">
             <input
                 type="checkbox"
                 name="participants"
@@ -63,7 +63,12 @@
                 </svg>
             </div>
         </label>
+      {% empty %}
+        <p class="text-center py-8 text-[#8696A0]">No users yet</p>
       {% endfor %}  
+
+      <!-- No user found for search input -->
+      <p class="text-center py-8 text-[#8696A0]" id="not-found-message"></p>
     </div>
   </div>
 
@@ -152,56 +157,137 @@
 
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const userSearch = document.getElementById('user-search');
-  const userItems = document.querySelectorAll('.user-item');
-  const selectedUsersDiv = document.getElementById('selected-users');
-  const nextBtn = document.getElementById('next-btn');
-  const groupDetailsForm = document.getElementById('group-details-form');
-  const userSelectionSection = document.getElementById('user-selection-section');
-  const selectedParticipantsInput = document.getElementById('selected-participants-input');
-  const finalParticipantsList = document.getElementById('final-participants-list');
-  const backToUsersBtn = document.getElementById('back-to-users');
-  const avatarInput = document.getElementById('avatar');
-  const avatarPreview = document.getElementById('avatar-preview');
+  document.addEventListener('DOMContentLoaded', function() {
+    const userSearch = document.getElementById('user-search');
+    const userItems = document.querySelectorAll('.user-item');
+    const notFoundMessage = document.getElementById('not-found-message');
+    const selectedUsersDiv = document.getElementById('selected-users');
+    const nextBtn = document.getElementById('next-btn');
+    const groupDetailsForm = document.getElementById('group-details-form');
+    const userSelectionSection = document.getElementById('user-selection-section');
+    const selectedParticipantsInput = document.getElementById('selected-participants-input');
+    const finalParticipantsList = document.getElementById('final-participants-list');
+    const backToUsersBtn = document.getElementById('back-to-users');
+    const avatarInput = document.getElementById('avatar');
+    const avatarPreview = document.getElementById('avatar-preview');
 
-  let selectedUsers = new Set();
+    let selectedUsers = new Set();
 
-  // Search functionality
-  userSearch.addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
+    // Initially hide the not found message
+      notFoundMessage.style.display = 'none';
+      
+      // Search functionality
+      userSearch.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        let foundCount = 0;
+        
+        userItems.forEach(item => {
+          const username = item.querySelector('h3').textContent.toLowerCase();
+          const email = item.querySelector('p').textContent.toLowerCase();
+          if (username.includes(searchTerm) || email.includes(searchTerm)) {
+            item.style.display = '';
+            foundCount++;
+          } else {
+            item.style.display = 'none';
+          }
+        });
+        
+        // Show not found message if no users match the search
+        if (foundCount === 0 && searchTerm.length > 0) {
+          notFoundMessage.textContent = `No users found for '${userSearch.value}'`
+          notFoundMessage.style.display = '';
+        } else {
+          notFoundMessage.style.display = 'none';
+        }
+        
+        // If search is empty, ensure not found message is hidden
+        if (searchTerm.length === 0) {
+          notFoundMessage.textContent = ''
+          notFoundMessage.style.display = 'none';
+        }
+      });
+
+    // User selection
     userItems.forEach(item => {
-      const username = item.querySelector('h3').textContent.toLowerCase();
-      const handle = item.querySelector('p').textContent.toLowerCase();
-      if (username.includes(searchTerm) || handle.includes(searchTerm)) {
-        item.style.display = 'flex';
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      const userId = checkbox.value;
+      const userName = item.querySelector('h3').textContent;
+
+      checkbox.addEventListener('change', function() {
+        if (this.checked) {
+          selectedUsers.add(userId);
+        } else {
+          selectedUsers.delete(userId);
+        }
+        updateSelectedUsers();
+        updateNextButton();
+      });
+    });
+
+    function updateSelectedUsers() {
+      selectedUsersDiv.innerHTML = '';
+      if (selectedUsers.size > 0) {
+        selectedUsersDiv.classList.remove('hidden');
+        selectedUsers.forEach(userId => {
+          const userItem = Array.from(userItems).find(item => 
+            item.querySelector('input').value === userId
+          );
+          if (userItem) {
+            const userName = userItem.querySelector('h3').textContent;
+            const userAvatar = userItem.querySelector('img').src;
+            const chip = document.createElement('div');
+            chip.className = 'selected-user-chip';
+            chip.style.flexShrink = '0';
+            chip.innerHTML = `
+              <div class="relative flex flex-col items-center">
+                <div class="relative">
+                  <img src="${userAvatar}" alt="${userName}" class="w-12 h-12 rounded-full object-cover">
+                  <span 
+                    class="absolute -bottom-1 -right-1 flex items-center justify-center 
+                          w-4 h-4 rounded-full bg-gray-300 text-gray-500 hover:text-black text-sm font-bold 
+                          cursor-pointer shadow-md remove-user" 
+                    data-user-id="${userId}">
+                    ×
+                  </span>
+                </div>
+                <div class="mt-2 text-sm text-center text-white">
+                  ${userName.slice(0, 5)}
+                </div>
+              </div>
+            `;
+            selectedUsersDiv.appendChild(chip);
+          }
+        });
       } else {
-        item.style.display = 'none';
+        selectedUsersDiv.classList.add('hidden');
+      }
+    }
+
+    function updateNextButton() {
+      nextBtn.disabled = selectedUsers.size === 0;
+    }
+
+    // Remove user from selection
+    selectedUsersDiv.addEventListener('click', function(e) {
+      if (e.target.classList.contains('remove-user')) {
+        const userId = e.target.dataset.userId;
+        const checkbox = document.querySelector(`input[value="${userId}"]`);
+        if (checkbox) {
+          checkbox.checked = false;
+          selectedUsers.delete(userId);
+          updateSelectedUsers();
+          updateNextButton();
+        }
       }
     });
-  });
 
-  // User selection
-  userItems.forEach(item => {
-    const checkbox = item.querySelector('input[type="checkbox"]');
-    const userId = checkbox.value;
-    const userName = item.querySelector('h3').textContent;
-
-    checkbox.addEventListener('change', function() {
-      if (this.checked) {
-        selectedUsers.add(userId);
-      } else {
-        selectedUsers.delete(userId);
-      }
-      updateSelectedUsers();
-      updateNextButton();
-    });
-  });
-
-  function updateSelectedUsers() {
-    selectedUsersDiv.innerHTML = '';
-    if (selectedUsers.size > 0) {
-      selectedUsersDiv.classList.remove('hidden');
+    // Next button click
+    nextBtn.addEventListener('click', function() {
+      // Populate the hidden input with selected user IDs
+      selectedParticipantsInput.value = Array.from(selectedUsers).join(',');
+      
+      // Populate final participants list
+      finalParticipantsList.innerHTML = '';
       selectedUsers.forEach(userId => {
         const userItem = Array.from(userItems).find(item => 
           item.querySelector('input').value === userId
@@ -209,102 +295,42 @@ document.addEventListener('DOMContentLoaded', function() {
         if (userItem) {
           const userName = userItem.querySelector('h3').textContent;
           const userAvatar = userItem.querySelector('img').src;
-          const chip = document.createElement('div');
-          chip.className = 'selected-user-chip';
-          chip.style.flexShrink = '0';
-          chip.innerHTML = `
-            <div class="relative flex flex-col items-center">
-              <div class="relative">
-                <img src="${userAvatar}" alt="${userName}" class="w-12 h-12 rounded-full object-cover">
-                <span 
-                  class="absolute -bottom-1 -right-1 flex items-center justify-center 
-                        w-4 h-4 rounded-full bg-gray-300 text-gray-500 hover:text-black text-sm font-bold 
-                        cursor-pointer shadow-md remove-user" 
-                  data-user-id="${userId}">
-                  ×
-                </span>
-              </div>
-              <div class="mt-2 text-sm text-center text-white">
-                ${userName.slice(0, 5)}
-              </div>
+          const participantDiv = document.createElement('div');
+          participantDiv.className = 'flex items-center p-3 border-b border-[#2A3942]';
+          participantDiv.innerHTML = `
+            <img src="${userAvatar}" alt="${userName}" class="w-10 h-10 rounded-full object-cover mr-3">
+            <div class="flex-1">
+              <h3 class="text-white font-medium">${userName}</h3>
             </div>
           `;
-          selectedUsersDiv.appendChild(chip);
+          finalParticipantsList.appendChild(participantDiv);
         }
       });
-    } else {
-      selectedUsersDiv.classList.add('hidden');
-    }
-  }
 
-  function updateNextButton() {
-    nextBtn.disabled = selectedUsers.size === 0;
-  }
-
-  // Remove user from selection
-  selectedUsersDiv.addEventListener('click', function(e) {
-    if (e.target.classList.contains('remove-user')) {
-      const userId = e.target.dataset.userId;
-      const checkbox = document.querySelector(`input[value="${userId}"]`);
-      if (checkbox) {
-        checkbox.checked = false;
-        selectedUsers.delete(userId);
-        updateSelectedUsers();
-        updateNextButton();
-      }
-    }
-  });
-
-  // Next button click
-  nextBtn.addEventListener('click', function() {
-    // Populate the hidden input with selected user IDs
-    selectedParticipantsInput.value = Array.from(selectedUsers).join(',');
-    
-    // Populate final participants list
-    finalParticipantsList.innerHTML = '';
-    selectedUsers.forEach(userId => {
-      const userItem = Array.from(userItems).find(item => 
-        item.querySelector('input').value === userId
-      );
-      if (userItem) {
-        const userName = userItem.querySelector('h3').textContent;
-        const userAvatar = userItem.querySelector('img').src;
-        const participantDiv = document.createElement('div');
-        participantDiv.className = 'flex items-center p-3 border-b border-[#2A3942]';
-        participantDiv.innerHTML = `
-          <img src="${userAvatar}" alt="${userName}" class="w-10 h-10 rounded-full object-cover mr-3">
-          <div class="flex-1">
-            <h3 class="text-white font-medium">${userName}</h3>
-          </div>
-        `;
-        finalParticipantsList.appendChild(participantDiv);
-      }
+      // Show group details form, hide user selection
+      userSelectionSection.classList.add('hidden');
+      groupDetailsForm.classList.remove('hidden');
     });
 
-    // Show group details form, hide user selection
-    userSelectionSection.classList.add('hidden');
-    groupDetailsForm.classList.remove('hidden');
-  });
+    // Back to user selection
+    backToUsersBtn.addEventListener('click', function() {
+      groupDetailsForm.classList.add('hidden');
+      userSelectionSection.classList.remove('hidden');
+    });
 
-  // Back to user selection
-  backToUsersBtn.addEventListener('click', function() {
-    groupDetailsForm.classList.add('hidden');
-    userSelectionSection.classList.remove('hidden');
+    // Avatar preview
+    avatarInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          avatarPreview.src = e.target.result;
+          console.log(e.target.result);
+          
+        };
+        reader.readAsDataURL(file);
+      }
+    });
   });
-
-  // Avatar preview
-  avatarInput.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        avatarPreview.src = e.target.result;
-        console.log(e.target.result);
-        
-      };
-      reader.readAsDataURL(file);
-    }
-  });
-});
 </script>
 {% endblock content %}

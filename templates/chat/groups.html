@@ -48,7 +48,6 @@
           <input
           type="text"
           name="search"
-          value="{{ search_query|default:'' }}"
           placeholder="Search groups..."
           id="user-search"
           class="w-full bg-[#202C33] text-[#E9EDEF] py-2 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-[#005C4B] rounded-full"
@@ -95,7 +94,7 @@
 
                   <!-- User info -->
                   <div class="min-w-0">
-                    <p class="font-medium text-[#E9EDEF] truncate group-name">
+                    <p class="font-medium text-[#E9EDEF] truncate groupname">
                       {{ group.name }}
                     </p>
                     <p class="text-sm text-[#8696A0] truncate">
@@ -119,12 +118,11 @@
             </a>
           </li>
         {% empty %}
-          {% if search_query %}
-            <li class="text-center py-8 text-[#8696A0]">No users found for "{{ search_query }}"</li>
-          {% else %}
-            <li class="text-center py-8 text-[#8696A0]">No messages yet</li>
-          {% endif %}
+          <li class="text-center py-8 text-[#8696A0]">No groups yet</li>
         {% endfor %}
+
+        <!-- No user found for search input -->
+        <li class="text-center py-8 text-[#8696A0]" id="not-found-message"></li>
       </ul>
 
       <!-- Fixed Green + Button -->
@@ -142,19 +140,40 @@
   document.addEventListener('DOMContentLoaded', () => {
     const userSearch = document.getElementById('user-search');
     const userItems = document.querySelectorAll('.user-item');
-  
+    const notFoundMessage = document.getElementById('not-found-message');
+    
+    // Initially hide the not found message
+    notFoundMessage.style.display = 'none';
+    
     // Search functionality
     userSearch.addEventListener('input', function() {
       const searchTerm = this.value.toLowerCase();
+      let foundCount = 0;
+      
       userItems.forEach(item => {
-        const groupname = item.querySelector('.group-name').textContent.toLowerCase();
-        if (groupname.includes(searchTerm)) {
+        const username = item.querySelector('.groupname').textContent.toLowerCase();
+        if (username.includes(searchTerm)) {
           item.style.display = '';
+          foundCount++;
         } else {
           item.style.display = 'none';
         }
       });
+      
+      // Show not found message if no users match the search
+      if (foundCount === 0 && searchTerm.length > 0) {
+        notFoundMessage.textContent = `No users found for '${userSearch.value}'`
+        notFoundMessage.style.display = '';
+      } else {
+        notFoundMessage.style.display = 'none';
+      }
+      
+      // If search is empty, ensure not found message is hidden
+      if (searchTerm.length === 0) {
+        notFoundMessage.textContent = ''
+        notFoundMessage.style.display = 'none';
+      }
     });
-  })
+  });
 </script>
 {% endblock content %}
