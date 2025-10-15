@@ -31,6 +31,10 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # ASGI Requirements
+    'daphne',
+    'channels',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,6 +52,16 @@ INSTALLED_APPS = [
     # others
     'import_export',
 ]
+
+# THIS LINE IS CRITICAL - must match your project name
+ASGI_APPLICATION = 'NexChat.asgi.application'
+
+# Add channel layers
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

@@ -70,13 +70,13 @@ class SendMessageView(LoginRequiredMixin, View):
     redirect_field_name = 'next'  # Default (optional)
 
     def post(self, request):
-        to_user_username = request.POST.get('to_user')
+        user_id = request.POST.get('to_user')
         body = request.POST.get('body')
 
-        to_user = CustomUser.objects.get(username=to_user_username)
+        to_user = CustomUser.objects.get(pk=user_id)
         Messages.sendMessage(request.user, to_user, body)
 
-        return JsonResponse({"message": f"Message Sent to {to_user_username}."})
+        return JsonResponse({"message": f"Message Sent to {to_user.username}."})
     
 class DeleteMessageView(LoginRequiredMixin, View):
     login_url = '/'  # Redirect URL if not authenticated

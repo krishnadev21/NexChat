@@ -1,0 +1,60 @@
+import json
+
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+def getPrivateGroupName(user1_id, user2_id):
+    sorted_ids = sorted([user1_id, user2_id])
+    return f"private_chat_{sorted_ids[0]}_{sorted_ids[1]}"
+
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        user = self.scope["user"] # User object
+        recipient = self.scope["url_route"]["kwargs"]["to_user"]
+        self.room_group_name = getPrivateGroupName(user.id, recipient)
+
+        # Add this connection to the group (await directly)
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+
+        await self.accept()
+
+        # Send message back to WebSocket client
+        await self.send(text_data=json.dumps({
+            'type': 'chat',
+            'message': 'Connection Established'
+        }))
+
+    async def disconnect(self, close_code):
+        # Remove from group when disconnecting
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
+
+    async def receive(self, text_data):
+        text_data_json = json.loads(text_data)
+        message = text_data_json['message']
+
+        # Get the sender's info BEFORE group_send
+        sender = self.scope["user"]
+        
+        # Broadcast to the group (await directly)
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'chat_message',
+                'sender': sender,
+                'message': message
+            }
+        )
+
+    async def chat_message(self, event):
+        # Send message back to WebSocket client
+        await self.send(text_data=json.dumps({
+            'type': 'chat',
+            'sender_id': event["sender"].id,
+            'message': event["message"]
+        }))
