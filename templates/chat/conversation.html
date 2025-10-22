@@ -86,9 +86,9 @@
   >
     <!-- Messages will be inserted here -->
     {% for message in conversation.messages %}
-      <div
-        class="flex items-end {% if message.sender == request.user %} justify-end flex-row-reverse {% else %} justify-start{% endif %} gap-2 mb-3"
-      >
+    <!-- The starting point (flex-start) moves from left → right → to right → left.
+         So your first item starts on the right side of the container. -->
+     <div class="flex w-full gap-2 mb-3 {% if message.sender == request.user %}flex-row-reverse{% else %}justify-start{% endif %}">
         <!-- Avatar -->
         <img
           src="{{ message.sender.avatar.url|default:'/media/default.jpg' }}"
@@ -200,12 +200,6 @@
   <div class="p-3 bg-[#202C33]">
     <form method="post" id="chat-form" class="flex items-center gap-2 w-full">
       {% csrf_token %}
-      <input
-        type="hidden"
-        name="to_user"
-        id="to_user"
-        value="{{ conversation.partner.id }}"
-      />
       <div class="flex-1 min-w-0">
         <input
           type="text"
@@ -247,6 +241,7 @@
     // DOM Elements
     const chatForm = document.getElementById("chat-form");
     const messagesContainer = document.getElementById("messages-container");
+    const messageInput = document.getElementById("body");
 
     // Configuration Data
     const chatData = document.getElementById("chat-container").dataset;
@@ -254,6 +249,14 @@
     const recipientAvatar = chatData.recipientAvatar;
     const recipientId = chatData.recipientId;
     const userAvatar = chatData.userAvatar;
+
+    // Auto-scroll function
+    const scrollToBottom = () => {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    // Initial scroll to bottom when page loads
+    scrollToBottom();
 
     // Web Socket Connection
     const chatSocket = new WebSocket(
@@ -271,47 +274,24 @@
         .toLowerCase();
     }
 
-    chatSocket.onmessage = (e) => {
-      const data = JSON.parse(e.data);
+    let typingTimeout;
 
-      // Optimistic UI update
-      const tempId = Date.now();
-      const displayTime = formatTime(tempId);
+    function sendTypingStatus(isTyping) {
+      chatSocket.send(JSON.stringify({
+        type: "typing",
+        is_typing: isTyping
+      }));
+    }
 
-      messagesContainer.innerHTML += `
-            <div class="flex ${Number(userId) === Number(data.sender_id) ? "justify-end" : "justify-start"}" id="temp-${tempId} gap-2 mb-3">
-              <!-- Avatar -->
-              <img
-                src="${Number(userId) === Number(data.sender_id) ? userAvatar : recipientAvatar}" id="temp-${tempId}"
-                alt="{{ message.sender.username }}"
-                class="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                onerror="this.src='/static/images/default-avatar.jpg'"
-              />
+    // Detect when user is typing
+    messageInput.addEventListener("input", () => {
+      sendTypingStatus(true);
 
-              <!-- Message Bubble -->
-              <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
-                 ${Number(userId) === Number(data.sender_id)? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
-                  <p class="text-[#E9EDEF]">${data.message}</p>
-                  <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
-                    ${
-                      Number(userId) === Number(data.sender_id)
-                        ? '<span class="ml-1">✓</span>'
-                        : ""
-                    } <!-- Only show check for own messages -->
-                  </p>
-              </div>
-            </div>
-           `;
-
-      scrollToBottom();
-    };
-
-    // Auto-scroll to bottom of messages
-    const scrollToBottom = () => {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    };
-
-    scrollToBottom();
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        sendTypingStatus(false);
+      }, 1500); // stop typing if idle for 1.5s
+    });
 
     // Past the chatForm function
     chatForm.addEventListener("submit", async (e) => {
@@ -323,7 +303,10 @@
       if (!messageBody || !recipientId) return;
 
       try {
-        chatSocket.send(JSON.stringify({ message: messageBody }));
+        chatSocket.send(JSON.stringify({ 
+          type: "chat",
+          message: messageBody
+        }));
         messageInput.value = "";
       } catch (error) {
         console.error("Error:", error);
@@ -348,6 +331,49 @@
         }, 3000);
       }
     });
+
+    chatSocket.onmessage = (e) => {
+      // Parse the received message
+      const data = JSON.parse(e.data);
+
+      if (data.type === "chat") {
+
+        // Check if the message was sent by the current user
+        const isCurrentUser = Number(userId) === Number(data.sender_id);
+
+        // Optimistic UI update helpers
+        const tempId = Date.now();
+        const displayTime = formatTime(tempId);
+
+        messagesContainer.innerHTML += `
+          <div class="flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"}" id="temp-${tempId}">
+            <!-- Avatar -->
+            <img
+              src="${isCurrentUser ? userAvatar : recipientAvatar}" id="temp-${tempId}"
+              alt="{{ message.sender.username }}"
+              class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+              onerror="this.src='/static/images/default-avatar.jpg'"
+            />
+
+            <!-- Message Bubble -->
+            <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
+                ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
+                <p class="text-[#E9EDEF]">${data.message}</p>
+                <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
+                  ${isCurrentUser ? '<span class="ml-1">✓</span>' : "" } <!-- Only show check for own messages -->
+                </p>
+            </div>
+          </div>
+          `;
+
+        // Scroll after new message is added
+        scrollToBottom();
+      }
+
+      if (data.type === "typing") {
+        console.log("printing");
+      }
+    };
 
     // Focus input when chat is opened
     if (document.getElementById("body")) {

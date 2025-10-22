@@ -35,21 +35,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        message = text_data_json['message']
-
-        # Get the sender's info BEFORE group_send
-        sender = self.scope["user"]
+        payload = json.loads(text_data)
         
-        # Broadcast to the group (await directly)
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'sender': sender,
-                'message': message
-            }
-        )
+        if payload.get("type") == "chat":
+            message = payload.get("message")
+
+            # Get the sender's info BEFORE group_send
+            sender = self.scope["user"]
+            
+            # Broadcast to the group (await directly)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'sender': sender,
+                    'message': message
+                }
+            )
+        
+        if payload.get("type") == "typing":
+            # Broadcast typing status to the group
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "typing_status",
+                    "user_id": self.scope["user"].id,
+                    "is_typing": payload.get("is_typing", False),
+                }
+            )
 
     async def chat_message(self, event):
         # Send message back to WebSocket client
@@ -57,4 +70,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'chat',
             'sender_id': event["sender"].id,
             'message': event["message"]
+        }))
+
+    async def typing_status(self, event):
+        # Send to WebSocket
+        await self.send(text_data=json.dumps({
+            "type": "typing",
+            "user_id": event["user_id"],
+            "is_typing": event["is_typing"]
         }))
