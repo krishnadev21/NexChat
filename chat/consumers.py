@@ -39,16 +39,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         if payload.get("type") == "chat":
             message = payload.get("message")
-
-            # Get the sender's info BEFORE group_send
-            sender = self.scope["user"]
             
             # Broadcast to the group (await directly)
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     'type': 'chat_message',
-                    'sender': sender,
+                    'sender_id': self.scope["user"].id,
                     'message': message
                 }
             )
@@ -68,7 +65,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Send message back to WebSocket client
         await self.send(text_data=json.dumps({
             'type': 'chat',
-            'sender_id': event["sender"].id,
+            'sender_id': event["sender_id"],
             'message': event["message"]
         }))
 

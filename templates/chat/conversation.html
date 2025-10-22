@@ -10,6 +10,7 @@
   data-recipient-id="{{ conversation.partner.id }}"
   data-recipient-name="{{ conversation.partner.username }}"
   data-recipient-avatar="{{ conversation.partner.avatar.url }}"
+  data-recipient-last-active="{{ conversation.partner.last_activity }}"
 >
   {% if conversation.partner %}
   <!-- Chat header -->
@@ -49,7 +50,7 @@
           <h2 class="font-medium text-[#E9EDEF]">
             {{ conversation.partner.username }}
           </h2>
-          <p class="text-xs text-[#8696A0]">
+          <p id="typing-indicator" class="text-xs text-[#8696A0]">
             {{ conversation.partner.last_activity }}
           </p>
         </div>
@@ -242,6 +243,7 @@
     const chatForm = document.getElementById("chat-form");
     const messagesContainer = document.getElementById("messages-container");
     const messageInput = document.getElementById("body");
+    const typingIndicator = document.getElementById(`typing-indicator`);
 
     // Configuration Data
     const chatData = document.getElementById("chat-container").dataset;
@@ -290,7 +292,7 @@
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
         sendTypingStatus(false);
-      }, 1500); // stop typing if idle for 1.5s
+      }, 1000); // stop typing if idle for 1.5s
     });
 
     // Past the chatForm function
@@ -371,7 +373,29 @@
       }
 
       if (data.type === "typing") {
-        console.log("printing");
+        // Ignore if the current user is the one typing
+        if (Number(data.user_id) === Number(userId)) return;
+
+        // const userId = data.user_id;
+        const isTyping = data.is_typing;
+
+        if (typingIndicator) {
+          typingIndicator.style.transition = 'opacity 0.2s ease-in-out';
+          
+          if (isTyping) {
+            // Fade in "typing..."
+            typingIndicator.textContent = "typing...";
+            typingIndicator.style.opacity = '1';
+          } else {
+            // Fade out → Update → Fade in
+            typingIndicator.style.opacity = '0';
+            
+            setTimeout(() => {
+              typingIndicator.textContent = "online";
+              typingIndicator.style.opacity = '1';
+            }, 200);
+          }
+        }
       }
     };
 
