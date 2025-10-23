@@ -79,7 +79,8 @@ class CustomUser(AbstractUser):
         help_text='Designates whether the user has verified their email'
     )
     last_activity = models.DateTimeField(
-        auto_now=True,
+        null=True,
+        blank=True,
         help_text='Last time the user was active'
     )
 

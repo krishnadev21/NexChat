@@ -1,4 +1,6 @@
 import json
+from django.utils import timezone
+from channels.db import database_sync_to_async
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
@@ -9,9 +11,9 @@ def getPrivateGroupName(user1_id, user2_id):
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        user = self.scope["user"] # User object
+        self.user = self.scope["user"] # User object
         recipient = self.scope["url_route"]["kwargs"]["to_user"]
-        self.room_group_name = getPrivateGroupName(user.id, recipient)
+        self.room_group_name = getPrivateGroupName(self.user.id, recipient)
 
         # Add this connection to the group (await directly)
         await self.channel_layer.group_add(
@@ -28,6 +30,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def disconnect(self, close_code):
+        if hasattr(self, 'user') and self.user.is_authenticated:
+            await self.update_last_active()
+
         # Remove from group when disconnecting
         await self.channel_layer.group_discard(
             self.room_group_name,
@@ -76,3 +81,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "user_id": event["user_id"],
             "is_typing": event["is_typing"]
         }))
+
+    @database_sync_to_async
+    def update_last_active(self):
+        """Safely update last_active in the DB from async context"""
+        self.user.last_activity = timezone.now()
+        self.user.save(update_fields=["last_activity"])
+        print(self.user.last_activity)
