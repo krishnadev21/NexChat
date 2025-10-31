@@ -262,7 +262,8 @@
 
     // Web Socket Connection
     const chatSocket = new WebSocket(
-      `ws://${window.location.host}/ws/socket-server/${recipientId}`
+      // `ws://${window.location.host}/ws/socket-server/${recipientId}`
+      `ws://127.0.0.1:8001/ws/chat/${userId}/${recipientId}`
     );
 
     // Results: "5:45 pm", "11:30 am", "12:15 pm"
