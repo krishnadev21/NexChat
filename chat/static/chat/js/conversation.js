@@ -26,6 +26,9 @@ document.addEventListener("DOMContentLoaded", () => {
     `ws://127.0.0.1:8001/ws/chat/${userId}/${recipientId}`
   );
 
+  // In-memory map for pending messages
+  const pending = {}; // temp_id -> DOM element or data
+
   // Results: "5:45 pm", "11:30 am", "12:15 pm"
   function formatTime(timestamp) {
     return new Date(timestamp)
@@ -59,32 +62,86 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Create message container
-  const createMessageElement = (isCurrentUser, data, tempId) => {
-      messagesContainer.innerHTML += `
-          <div class="flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"}" id="temp-${tempId}">
-              <!-- Avatar -->
-              <img
-                  src="${isCurrentUser ? userAvatar : recipientAvatar}" id="temp-${tempId}"
-                  alt="{{ message.sender.username }}"
-                  class="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                  onerror="this.src='/static/images/default-avatar.jpg'"
-              />
+//  const createMessageElement = ({isCurrentUser, message, tempId, status}) => {
+//     const messageDiv = document.createElement('div');
+//     messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
+//     messageDiv.id = `temp-${tempId}`;
+    
+//     messageDiv.innerHTML = `
+//       <img
+//         src="${isCurrentUser ? userAvatar : recipientAvatar}"
+//         alt="${isCurrentUser ? 'You' : 'Recipient'}"
+//         class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+//         onerror="this.src='/static/images/default-avatar.jpg'"
+//       />
+//       <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
+//           ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
+//         <p class="text-[#E9EDEF]">${message}</p>
+//         <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
+//             ${isCurrentUser ? '<span class="ml-1">✓</span>' : ""}
+//         </p>
+//       </div>
+//     `;
+    
+//     messagesContainer.appendChild(messageDiv);
+//     return messageDiv;
+//  };
 
-              <!-- Message Bubble -->
-              <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
-                  ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
-                  <p class="text-[#E9EDEF]">${data.message}</p>
-                  <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
-                      ${isCurrentUser ? '<span class="ml-1">✓</span>' : "" } <!-- Only show check for own messages -->
-                  </p>
-              </div>
-          </div>
-      `;
-  }
+function renderPendingMessage({ temp_id, message, status }) {
+  const el = document.createElement("div");
+  el.className = `message ${status}`;
+  el.dataset.tempId = temp_id;
+  el.innerHTML = `
+    <p class="text-white">${message}</p>
+    <span class="text-white status">${status}</span>
+  `;
+  messagesContainer.appendChild(el);
+
+  // Return helper object for later UI updates
+  return {
+    el,
+    updateStatus(newStatus) {
+      el.classList.remove("pending", "failed", "sent");
+      el.classList.add(newStatus);
+      el.querySelector(".status").textContent = newStatus;
+    },
+    replaceWithConfirmed({ message_id, timestamp, message }) {
+      el.dataset.messageId = message_id;
+      el.querySelector("p").textContent = message;
+      el.querySelector(".status").textContent = "delivered";
+      el.classList.remove("pending");
+      el.classList.add("delivered");
+    },
+    showRetryButton(callback) {
+      const btn = document.createElement("button");
+      btn.textContent = "Retry";
+      btn.onclick = callback;
+      el.appendChild(btn);
+    },
+    getText() {
+      return el.querySelector("p").textContent;
+    },
+  };
+}
+
 
   chatSocket.onmessage = (e) => {
     // Parse the received message
     const data = JSON.parse(e.data);
+
+    if (data.type === "receipt") {
+      const { temp_id, status } = data;
+      const item = pending[temp_id];
+      if (!item) return;
+      if (status === "received_by_server") {
+        item.updateStatus("sent");
+      } else if (status === "failed") {
+        console.log(data.type);
+        item.updateStatus("failed");
+        item.showRetryButton(() => resend(temp_id, item));
+      }
+    }
+
 
     if (data.type === "chat") {
       // Check if the message was sent by the current user
@@ -94,8 +151,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const tempId = Date.now();
       const displayTime = formatTime(tempId);
 
-      createMessageElement(isCurrentUser, data, tempId);
-
+      // const dom = createMessageElement({isCurrentUser, message: data.message, temp_id: tempId, status: "print"});
+      // console.log(typeof(dom));
+      
       // Scroll after new message is added
       scrollToBottom();
     }
@@ -136,10 +194,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!messageBody || !recipientId) return;
 
+    const temp_id = "tmp-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
+    // render optimistic message in UI with status "pending"
+    const domItem = renderPendingMessage({ isCurrentUser: true, message: messageBody, temp_id, status: "pending" });
+    pending[temp_id] = domItem;
+
     try {
       chatSocket.send(
         JSON.stringify({
           type: "chat",
+          temp_id,
           message: messageBody,
         })
       );
