@@ -66,6 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
 //     const messageDiv = document.createElement('div');
 //     messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
 //     messageDiv.id = `temp-${tempId}`;
+//     messageDiv.dataset.tempId = tempId;
     
 //     messageDiv.innerHTML = `
 //       <img
@@ -78,13 +79,38 @@ document.addEventListener("DOMContentLoaded", () => {
 //           ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
 //         <p class="text-[#E9EDEF]">${message}</p>
 //         <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
-//             ${isCurrentUser ? '<span class="ml-1">✓</span>' : ""}
+//             ${status === "pending" ? '<span class="ml-1">.</span>' : status === "sent" ? <span class="ml-1">.✓</span>' : <span class="ml-1">✓✓</span>'}
 //         </p>
 //       </div>
 //     `;
     
 //     messagesContainer.appendChild(messageDiv);
-//     return messageDiv;
+
+      // Return helper object for later UI updates
+      return {
+        messagesContainer,
+        updateStatus(newStatus) {
+          el.classList.remove("pending", "failed", "sent", "delivered");
+          el.classList.add(newStatus);
+          el.querySelector(".status").textContent = newStatus;
+        },
+        replaceWithConfirmed({ message_id, timestamp, message }) {
+          el.dataset.messageId = message_id;
+          el.querySelector("p").textContent = message;
+          el.querySelector(".status").textContent = "delivered";
+          el.classList.remove("pending");
+          el.classList.add("delivered");
+        },
+        showRetryButton(callback) {
+          const btn = document.createElement("button");
+          btn.textContent = "Retry";
+          btn.onclick = callback;
+          el.appendChild(btn);
+        },
+        getText() {
+          return el.querySelector("p").textContent;
+        },
+      };
 //  };
 
 function renderPendingMessage({ temp_id, message, status }) {
@@ -101,7 +127,7 @@ function renderPendingMessage({ temp_id, message, status }) {
   return {
     el,
     updateStatus(newStatus) {
-      el.classList.remove("pending", "failed", "sent");
+      el.classList.remove("pending", "failed", "sent", "delivered");
       el.classList.add(newStatus);
       el.querySelector(".status").textContent = newStatus;
     },
@@ -135,10 +161,11 @@ function renderPendingMessage({ temp_id, message, status }) {
       if (!item) return;
       if (status === "received_by_server") {
         item.updateStatus("sent");
+      } else if (status === "delivered_to_recipient") {
+          item.updateStatus("delivered");
       } else if (status === "failed") {
-        console.log(data.type);
-        item.updateStatus("failed");
-        item.showRetryButton(() => resend(temp_id, item));
+          item.updateStatus("failed");
+          item.showRetryButton(() => resend(temp_id, item));
       }
     }
 
