@@ -12,6 +12,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const recipientId = chatData.recipientId;
   const userAvatar = chatData.userAvatar;
 
+  const tickSymbols = {
+    pending: "●",         // waiting (optimistic)
+    received_by_server: "✓", 
+    sent: "✓",            // alias
+    delivered_to_recipient: "✓✓",
+    delivered: "✓✓",      // alias
+    failed: "⚠"
+  };
+
+
   // Auto-scroll function
   const scrollToBottom = () => {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -62,93 +72,94 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Create message container
-//  const createMessageElement = ({isCurrentUser, message, tempId, status}) => {
-//     const messageDiv = document.createElement('div');
-//     messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
-//     messageDiv.id = `temp-${tempId}`;
-//     messageDiv.dataset.tempId = tempId;
+ const createMessageElement = ({isCurrentUser, message, tempId, status}) => {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
+    messageDiv.id = `temp-${tempId}`;
+    messageDiv.dataset.tempId = tempId;
     
-//     messageDiv.innerHTML = `
-//       <img
-//         src="${isCurrentUser ? userAvatar : recipientAvatar}"
-//         alt="${isCurrentUser ? 'You' : 'Recipient'}"
-//         class="w-10 h-10 rounded-full object-cover flex-shrink-0"
-//         onerror="this.src='/static/images/default-avatar.jpg'"
-//       />
-//       <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
-//           ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
-//         <p class="text-[#E9EDEF]">${message}</p>
-//         <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
-//             ${status === "pending" ? '<span class="ml-1">.</span>' : status === "sent" ? <span class="ml-1">.✓</span>' : <span class="ml-1">✓✓</span>'}
-//         </p>
-//       </div>
-//     `;
+    messageDiv.innerHTML = `
+      <img
+        src="${isCurrentUser ? userAvatar : recipientAvatar}"
+        alt="${isCurrentUser ? 'You' : 'Recipient'}"
+        class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+        onerror="this.src='/static/images/default-avatar.jpg'"
+      />
+      <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
+          ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
+        <p class="text-[#E9EDEF]">${message}</p>
+        <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
+            ${isCurrentUser ? '<span class="ml-1 status"></span>' : ""}
+        </p>
+      </div>
+    `;
     
-//     messagesContainer.appendChild(messageDiv);
+    messagesContainer.appendChild(messageDiv);
+    scrollToBottom();
 
-      // Return helper object for later UI updates
-      return {
-        messagesContainer,
-        updateStatus(newStatus) {
-          el.classList.remove("pending", "failed", "sent", "delivered");
-          el.classList.add(newStatus);
-          el.querySelector(".status").textContent = newStatus;
-        },
-        replaceWithConfirmed({ message_id, timestamp, message }) {
-          el.dataset.messageId = message_id;
-          el.querySelector("p").textContent = message;
-          el.querySelector(".status").textContent = "delivered";
-          el.classList.remove("pending");
-          el.classList.add("delivered");
-        },
-        showRetryButton(callback) {
-          const btn = document.createElement("button");
-          btn.textContent = "Retry";
-          btn.onclick = callback;
-          el.appendChild(btn);
-        },
-        getText() {
-          return el.querySelector("p").textContent;
-        },
-      };
-//  };
+    // Return helper object for later UI updates
+    return {
+      messageDiv,
+      updateStatus(newStatus) {
+        messageDiv.classList.remove("pending", "failed", "sent", "delivered");
+        messageDiv.classList.add(newStatus);
+        messageDiv.querySelector(".status").textContent = tickSymbols[newStatus];
+      },
+      replaceWithConfirmed({ message_id, timestamp, message }) {
+        messageDiv.dataset.messageId = message_id;
+        messageDiv.querySelector("p").textContent = message;
+        messageDiv.querySelector(".status").textContent = "delivered";
+        messageDiv.classList.remove("pending");
+        messageDiv.classList.add("delivered");
+      },
+      showRetryButton(callback) {
+        const btn = document.createElement("button");
+        btn.textContent = "Retry";
+        btn.onclick = callback;
+        messageDiv.appendChild(btn);
+      },
+      getText() {
+        return el.querySelector("p").textContent;
+      },
+    };
+ };
 
-function renderPendingMessage({ temp_id, message, status }) {
-  const el = document.createElement("div");
-  el.className = `message ${status}`;
-  el.dataset.tempId = temp_id;
-  el.innerHTML = `
-    <p class="text-white">${message}</p>
-    <span class="text-white status">${status}</span>
-  `;
-  messagesContainer.appendChild(el);
+// function renderPendingMessage({ temp_id, message, status }) {
+//   const el = document.createElement("div");
+//   el.className = `message ${status}`;
+//   el.dataset.tempId = temp_id;
+//   el.innerHTML = `
+//     <p class="text-white">${message}</p>
+//     <span class="text-white status">${status}</span>
+//   `;
+//   messagesContainer.appendChild(el);
 
-  // Return helper object for later UI updates
-  return {
-    el,
-    updateStatus(newStatus) {
-      el.classList.remove("pending", "failed", "sent", "delivered");
-      el.classList.add(newStatus);
-      el.querySelector(".status").textContent = newStatus;
-    },
-    replaceWithConfirmed({ message_id, timestamp, message }) {
-      el.dataset.messageId = message_id;
-      el.querySelector("p").textContent = message;
-      el.querySelector(".status").textContent = "delivered";
-      el.classList.remove("pending");
-      el.classList.add("delivered");
-    },
-    showRetryButton(callback) {
-      const btn = document.createElement("button");
-      btn.textContent = "Retry";
-      btn.onclick = callback;
-      el.appendChild(btn);
-    },
-    getText() {
-      return el.querySelector("p").textContent;
-    },
-  };
-}
+//   // Return helper object for later UI updates
+//   return {
+//     el,
+//     updateStatus(newStatus) {
+//       el.classList.remove("pending", "failed", "sent", "delivered");
+//       el.classList.add(newStatus);
+//       el.querySelector(".status").textContent = newStatus;
+//     },
+//     replaceWithConfirmed({ message_id, timestamp, message }) {
+//       el.dataset.messageId = message_id;
+//       el.querySelector("p").textContent = message;
+//       el.querySelector(".status").textContent = "delivered";
+//       el.classList.remove("pending");
+//       el.classList.add("delivered");
+//     },
+//     showRetryButton(callback) {
+//       const btn = document.createElement("button");
+//       btn.textContent = "Retry";
+//       btn.onclick = callback;
+//       el.appendChild(btn);
+//     },
+//     getText() {
+//       return el.querySelector("p").textContent;
+//     },
+//   };
+// }
 
 
   chatSocket.onmessage = (e) => {
@@ -223,7 +234,8 @@ function renderPendingMessage({ temp_id, message, status }) {
 
     const temp_id = "tmp-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
     // render optimistic message in UI with status "pending"
-    const domItem = renderPendingMessage({ isCurrentUser: true, message: messageBody, temp_id, status: "pending" });
+    // const domItem = renderPendingMessage({ isCurrentUser: true, message: messageBody, temp_id, status: "pending" });
+    const domItem = createMessageElement({ isCurrentUser: true, message: messageBody, tempId: temp_id, status: "pending" });
     pending[temp_id] = domItem;
 
     try {
