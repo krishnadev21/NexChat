@@ -77,19 +77,17 @@ document.addEventListener("DOMContentLoaded", () => {
     messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
     messageDiv.id = `temp-${tempId}`;
     messageDiv.dataset.tempId = tempId;
+    messageDiv.dataset.status = status;
+
+    const timeDisplay = formatTime(Date.now());
+    const statusSymbol = tickSymbols[status] || tickSymbols.pending;
     
     messageDiv.innerHTML = `
-      <img
-        src="${isCurrentUser ? userAvatar : recipientAvatar}"
-        alt="${isCurrentUser ? 'You' : 'Recipient'}"
-        class="w-10 h-10 rounded-full object-cover flex-shrink-0"
-        onerror="this.src='/static/images/default-avatar.jpg'"
-      />
       <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
           ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
         <p class="text-[#E9EDEF]">${message}</p>
-        <p class="text-xs text-[#8696A0] text-right mt-1">${formatTime(tempId)}
-            ${isCurrentUser ? '<span class="ml-1 status"></span>' : ""}
+        <p class="text-xs text-[#8696A0] text-right mt-1">${timeDisplay}
+            ${isCurrentUser ? `<span class="ml-1 status-indicator">${statusSymbol}</span>` : ""}
         </p>
       </div>
     `;
@@ -99,28 +97,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Return helper object for later UI updates
     return {
-      messageDiv,
+      element: messageDiv,
       updateStatus(newStatus) {
-        messageDiv.classList.remove("pending", "failed", "sent", "delivered");
-        messageDiv.classList.add(newStatus);
-        messageDiv.querySelector(".status").textContent = tickSymbols[newStatus];
+        const statusIndicator = messageDiv.querySelector('.status-indicator');
+        if (statusIndicator) {
+          statusIndicator.textContent = tickSymbols[newStatus] || newStatus;
+        }
+        messageDiv.dataset.status = newStatus;
       },
       replaceWithConfirmed({ message_id, timestamp, message }) {
         messageDiv.dataset.messageId = message_id;
         messageDiv.querySelector("p").textContent = message;
-        messageDiv.querySelector(".status").textContent = "delivered";
-        messageDiv.classList.remove("pending");
-        messageDiv.classList.add("delivered");
+        this.updateStatus("delivered");
       },
-      showRetryButton(callback) {
-        const btn = document.createElement("button");
-        btn.textContent = "Retry";
-        btn.onclick = callback;
-        messageDiv.appendChild(btn);
+      showRetryButton() {
+        const retryBtn = document.createElement("button");
+        retryBtn.className = "ml-2 text-xs text-red-400 underline";
+        retryBtn.textContent = "Retry";
+        retryBtn.onclick = () => {
+          const messageText = this.getElementText();
+          // Implement retry logic here
+          console.log("Retry sending:", messageText);
+        };
+        const timeContainer = messageDiv.querySelector('.flex.justify-between');
+        if (timeContainer) {
+          timeContainer.appendChild(retryBtn);
+        }
       },
-      getText() {
-        return el.querySelector("p").textContent;
-      },
+      getElementText() {
+        return messageDiv.querySelector("p").textContent;
+      }
     };
  };
 
@@ -170,6 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const { temp_id, status } = data;
       const item = pending[temp_id];
       if (!item) return;
+
       if (status === "received_by_server") {
         item.updateStatus("sent");
       } else if (status === "delivered_to_recipient") {
@@ -178,19 +185,34 @@ document.addEventListener("DOMContentLoaded", () => {
           item.updateStatus("failed");
           item.showRetryButton(() => resend(temp_id, item));
       }
-    }
 
+      // Remove from pending if final status
+      if (status === "delivered" || status === "failed") {
+        delete pending[temp_id];
+      }
+    }
 
     if (data.type === "chat") {
       // Check if the message was sent by the current user
       const isCurrentUser = Number(userId) === Number(data.sender_id);
 
+      // Only create message element for messages from others
+      // or for confirmed messages from self
+      if (!isCurrentUser) { // || data.temp_id
+        const tempId = data.temp_id || `rcv-${Date.now()}`;
+        createMessageElement({
+          isCurrentUser,
+          message: data.message,
+          tempId: tempId,
+          status: isCurrentUser ? "delivered" : "received"
+        });
+      }
+
       // Optimistic UI update helpers
-      const tempId = Date.now();
-      const displayTime = formatTime(tempId);
+      // const tempId = Date.now();
+      // const displayTime = formatTime(tempId);
 
       // const dom = createMessageElement({isCurrentUser, message: data.message, temp_id: tempId, status: "print"});
-      // console.log(typeof(dom));
       
       // Scroll after new message is added
       scrollToBottom();
@@ -223,6 +245,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+   // WebSocket error handling
+  chatSocket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+    showNotification('Connection error', 'bg-red-500');
+  };
+
+  chatSocket.onclose = (event) => {
+    console.log('WebSocket closed:', event);
+    if (!event.wasClean) {
+      showNotification('Connection lost. Reconnecting...', 'bg-yellow-500');
+    }
+  };
+
   // Past the chatForm function
   chatForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -244,11 +279,15 @@ document.addEventListener("DOMContentLoaded", () => {
           type: "chat",
           temp_id,
           message: messageBody,
+          sender_id: userId,
+          recipient_id: recipientId
         })
       );
       messageInput.value = "";
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Error sending message:", error);
+        domItem.updateStatus("failed");
+        domItem.showRetryButton();
         // Show error notification
         showNotification(error.message || "Failed to send message", "bg-red-500");
     }
