@@ -13,13 +13,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const userAvatar = chatData.userAvatar;
 
   const tickSymbols = {
-    pending: "●",         // waiting (optimistic)
-    received_by_server: "✓", 
-    sent: "✓",            // alias
-    delivered_to_recipient: "✓✓",
-    delivered: "✓✓",      // alias
+    pending: "⏲",
+    received_by_server: "🗸",  // Use the character directly
+    sent: "🗸",               // alias
+    delivered_to_recipient: "🗸🗸", // Remove space between them
+    delivered: "🗸🗸",        // alias
     failed: "⚠"
-  };
+};
 
 
   // Auto-scroll function
@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
         <p class="text-[#E9EDEF]">${message}</p>
         <p class="text-xs text-[#8696A0] text-right mt-1">${timeDisplay}
-            ${isCurrentUser ? `<span class="ml-1 status-indicator">${statusSymbol}</span>` : ""}
+            ${isCurrentUser ? `<span class="ml-1 font-bold text-md -tracking-[0.2em] status-indicator">${statusSymbol}</span>` : ""}
         </p>
       </div>
     `;
@@ -102,6 +102,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const statusIndicator = messageDiv.querySelector('.status-indicator');
         if (statusIndicator) {
           statusIndicator.textContent = tickSymbols[newStatus] || newStatus;
+          // Use classList to toggle Tailwind class
+          newStatus === 'delivered' ? statusIndicator.classList.add('text-[#34B7F1]') : statusIndicator.classList.remove('text-[#34B7F1]');
         }
         messageDiv.dataset.status = newStatus;
       },
