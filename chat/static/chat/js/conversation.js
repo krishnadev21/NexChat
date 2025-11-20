@@ -83,8 +83,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusSymbol = tickSymbols[status] || tickSymbols.pending;
     
     messageDiv.innerHTML = `
-      <div class="max-w-[65%] rounded-br-[30px] rounded-bl-[30px] p-3
-          ${isCurrentUser ? "rounded-tl-[30px] bg-[#005C4B]" : "rounded-tr-[30px] bg-[#202C33]"}">
+      <div class="max-w-[65%] rounded-br-[40px] rounded-bl-[40px] px-5 py-2
+          ${isCurrentUser ? "rounded-tl-[40px] rounded-tr-[6px] bg-[#005C4B]" : "rounded-tr-[40px] rounded-tl-[6px] bg-[#202C33]"}">
         <p class="text-[#E9EDEF]">${message}</p>
         <p class="text-xs text-[#8696A0] text-right mt-1">${timeDisplay}
             ${isCurrentUser ? `<span class="ml-1 font-bold text-md -tracking-[0.2em] status-indicator">${statusSymbol}</span>` : ""}
