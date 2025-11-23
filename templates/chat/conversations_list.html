@@ -61,7 +61,7 @@
 
       <!-- Conversations list -->
       <ul class="overflow-y-auto h-[calc(100vh-180px)] pb-4">  <!-- Adjusted height and added padding -->
-        {% for conversation in conversations %} 
+        {% for conversation in user_conversations %} 
           {% if conversation.partner != request.user %}
             <li class="user-item border-b border-[#2F3B43]">
               <a

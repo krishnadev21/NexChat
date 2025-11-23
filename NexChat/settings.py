@@ -160,7 +160,7 @@ AUTH_USER_MODEL = 'userauths.CustomUser'
 
 # Login Redirect URL
 LOGIN_URL = '/'
-LOGIN_REDIRECT_URL = '/chat/conversations-list/'
+LOGIN_REDIRECT_URL = '/chat/user-conversations/'
 
 
 # Session expires after 30 minutes of inactivity

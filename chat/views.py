@@ -16,255 +16,273 @@ from .models import (
     RoomModel,
     RoomMessagesModel,
 )
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+
 from .forms import (
     RoomForm,
 )
 
-class ConversationsListView(LoginRequiredMixin, View):
+class fetchUserConversationsView(LoginRequiredMixin, View):
     login_url = '/'  # Redirect URL if not authenticated
     redirect_field_name = 'next'  # Default (optional)
 
     def get(self, request):
-        conversations_list = []
+        user_conversations_list = []
         
         try:
-            conversations_list = Messages.getConversationsList(
-                user=request.user
+            user_conversations_list = Messages.fetchUserConversations(
+                user_id=request.user.id
             )
         
         except Exception as e:
             messages.error(request, f"Error loading conversations: {str(e)}")
-            conversations_list = []  # Ensure we always have a list
+            user_conversations_list = []  # Ensure we always have a list
         
         return render(request, 'chat/conversations_list.html', {
-            'conversations': conversations_list
+            'user_conversations': user_conversations_list
         })
     
-class SearchUsersView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class SearchUsersView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request):
-        try:
-            searched_users = CustomUser.objects.exclude(
-                id=request.user.id
-            ).order_by('username')[:20]  # Limit to 20 random users
+#     def get(self, request):
+#         try:
+#             searched_users = CustomUser.objects.exclude(
+#                 id=request.user.id
+#             ).order_by('username')[:20]  # Limit to 20 random users
             
-        except Exception as e:
-            messages.error(request, f"{str(e)}")
+#         except Exception as e:
+#             messages.error(request, f"{str(e)}")
         
-        return render(request, 'chat/search_users.html', {
-            'searched_users': searched_users
-        })
+#         return render(request, 'chat/search_users.html', {
+#             'searched_users': searched_users
+#         })
 
-class ConversationView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class SaveMessageView(APIView):
+#     def post(self, request):
+#         sender = request.data["sender_id"]
+#         recipient = request.data["to_user"]
+#         body = request.data["text"]
 
-    def get(self, request, partner_id):
-        conversation = Messages.getConversation(user=request.user, partner_id=partner_id)
-        return render(request, 'chat/conversation.html', context={'conversation': conversation})
+#         msg = Message.saveMessage(sender, recipient, body)
 
-class SendMessageView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+#         return Response({
+#             "message_id": msg.id,
+#             "created_at": msg.created_at.isoformat()
+#         })
 
-    def post(self, request):
-        user_id = request.POST.get('to_user')
-        body = request.POST.get('body')
+# class ConversationView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-        to_user = CustomUser.objects.get(pk=user_id)
-        Messages.sendMessage(request.user, to_user, body)
+#     def get(self, request, partner_id):
+#         conversation = Message.getConversation(user=request.user, partner_id=partner_id)
+#         return render(request, 'chat/conversation.html', context={'conversation': conversation})
 
-        return JsonResponse({"message": f"Message Sent to {to_user.username}."})
+# class SendMessageView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
+
+#     def post(self, request):
+#         user_id = request.POST.get('to_user')
+#         body = request.POST.get('body')
+
+#         to_user = CustomUser.objects.get(pk=user_id)
+#         Messages.sendMessage(request.user, to_user, body)
+
+#         return JsonResponse({"message": f"Message Sent to {to_user.username}."})
     
-class DeleteMessageView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class DeleteMessageView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request, pk):
-        Messages.objects.get(pk=pk).delete()
-        messages.success(request, f"Message deleted.")
+#     def get(self, request, pk):
+#         messages.objects.get(pk=pk).delete()
+#         messages.success(request, f"Message deleted.")
         
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+#         return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
-class DeleteConversationView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class DeleteConversationView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request, partner_id):
-        try:
-            partner = CustomUser.objects.get(pk=partner_id)
+#     def get(self, request, partner_id):
+#         try:
+#             partner = CustomUser.objects.get(pk=partner_id)
             
-            # Delete both copies (current user's copies only)
-            deleted_count, _ = Messages.objects.filter(
-                Q(user=request.user) &  # Current user's copy
-                (Q(sender=request.user, recipient=partner) | 
-                 Q(sender=partner, recipient=request.user))
-            ).delete()
+#             # Delete both copies (current user's copies only)
+#             deleted_count, _ = Messages.objects.filter(
+#                 Q(user=request.user) &  # Current user's copy
+#                 (Q(sender=request.user, recipient=partner) | 
+#                  Q(sender=partner, recipient=request.user))
+#             ).delete()
             
-            messages.success(request, f"Deleted {deleted_count} messages")
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+#             messages.success(request, f"Deleted {deleted_count} messages")
+#             return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
             
-        except Exception as e:
-            messages.error(request, f"Error deleting conversation: {str(e)}")
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+#         except Exception as e:
+#             messages.error(request, f"Error deleting conversation: {str(e)}")
+#             return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
         
-class CreateGroupView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class CreateGroupView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request):
-        form = RoomForm(user=request.user)
-        users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
+#     def get(self, request):
+#         form = RoomForm(user=request.user)
+#         users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
 
-        return render(request, 'chat/create_group.html', {
-            'form': form,
-            'users': users
-        })
+#         return render(request, 'chat/create_group.html', {
+#             'form': form,
+#             'users': users
+#         })
     
-    def post(self, request):
-        form = RoomForm(request.POST, request.FILES, user=request.user)
+#     def post(self, request):
+#         form = RoomForm(request.POST, request.FILES, user=request.user)
         
-        try:
-            if form.is_valid():
-                room = form.save(commit=False)
-                room.admin = request.user
-                room.save()
+#         try:
+#             if form.is_valid():
+#                 room = form.save(commit=False)
+#                 room.admin = request.user
+#                 room.save()
                 
-                # Add participants from the cleaned data
-                participants = form.cleaned_data['participants']
-                room.participants.add(*participants)
+#                 # Add participants from the cleaned data
+#                 participants = form.cleaned_data['participants']
+#                 room.participants.add(*participants)
                 
-                # Add current user if not already included
-                if request.user not in participants:
-                    room.participants.add(request.user)
+#                 # Add current user if not already included
+#                 if request.user not in participants:
+#                     room.participants.add(request.user)
                 
-                messages.success(request, f"{room.name} created")
-                return redirect('groups')
+#                 messages.success(request, f"{room.name} created")
+#                 return redirect('groups')
             
-            # Handle invalid form
-            print('form is not valid')
-            users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
-            return render(request, 'chat/create_group.html', {
-                'form': form,
-                'users': users
-            })
+#             # Handle invalid form
+#             print('form is not valid')
+#             users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
+#             return render(request, 'chat/create_group.html', {
+#                 'form': form,
+#                 'users': users
+#             })
             
-        except Exception as e:
-            messages.error(request, f"Error creating group: {str(e)}")
-            users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
-            return render(request, 'chat/create_group.html', {
-                'form': form,
-                'users': users
-            })
+#         except Exception as e:
+#             messages.error(request, f"Error creating group: {str(e)}")
+#             users = CustomUser.objects.exclude(id=request.user.id).order_by('username')
+#             return render(request, 'chat/create_group.html', {
+#                 'form': form,
+#                 'users': users
+#             })
         
-class GroupListView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class GroupListView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request):
-        try:
-            # Get groups where user is a participant
-            groups = RoomModel.objects.filter(
-                participants=request.user
-            ).distinct().order_by('-created_at')
+#     def get(self, request):
+#         try:
+#             # Get groups where user is a participant
+#             groups = RoomModel.objects.filter(
+#                 participants=request.user
+#             ).distinct().order_by('-created_at')
 
-            # Prefetch the last message for each group
-            for group in groups:
-                group.last_message = group.messages.order_by('-timestamp').first()
+#             # Prefetch the last message for each group
+#             for group in groups:
+#                 group.last_message = group.messages.order_by('-timestamp').first()
 
-        except Exception as e:
-            messages.error(request, f"Error loading conversations: {str(e)}")
-            groups = []  # Fallback to empty list if error occurs
+#         except Exception as e:
+#             messages.error(request, f"Error loading conversations: {str(e)}")
+#             groups = []  # Fallback to empty list if error occurs
         
-        return render(request, 'chat/groups.html', {
-            'groups': groups
-        })
+#         return render(request, 'chat/groups.html', {
+#             'groups': groups
+#         })
 
-class GroupView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class GroupView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request, pk):
-        try:
-            # Get the group with prefetched messages and participants
-            group = RoomModel.objects.get(pk=pk)
+#     def get(self, request, pk):
+#         try:
+#             # Get the group with prefetched messages and participants
+#             group = RoomModel.objects.get(pk=pk)
             
-            messages = group.messages.all().order_by('timestamp')
-            print(f'Messages --> {messages}')
+#             messages = group.messages.all().order_by('timestamp')
+#             print(f'Messages --> {messages}')
         
-        except Exception as e:
-            messages.error(request, f"Error loading conversations: {str(e)}")
+#         except Exception as e:
+#             messages.error(request, f"Error loading conversations: {str(e)}")
             
-        return render(request, 'chat/group.html', {
-            'group': group,
-            'chat_messages': messages
-        })
+#         return render(request, 'chat/group.html', {
+#             'group': group,
+#             'chat_messages': messages
+#         })
     
-    def post(self, request, pk):
-        try:
-            group = RoomModel.objects.get(pk=pk)
-            body = request.POST.get('body', '').strip()
+#     def post(self, request, pk):
+#         try:
+#             group = RoomModel.objects.get(pk=pk)
+#             body = request.POST.get('body', '').strip()
             
-            # Create the message
-            RoomMessagesModel.objects.create(
-                room=group,
-                sender=request.user,
-                message=body
-            )
+#             # Create the message
+#             RoomMessagesModel.objects.create(
+#                 room=group,
+#                 sender=request.user,
+#                 message=body
+#             )
             
-            return JsonResponse({"message": f"{request.user.username} send a message on {group.name}."})
+#             return JsonResponse({"message": f"{request.user.username} send a message on {group.name}."})
             
-        except RoomModel.DoesNotExist:
-            messages.error(request, "Group not found or access denied")
-            return redirect('group', pk=pk)
+#         except RoomModel.DoesNotExist:
+#             messages.error(request, "Group not found or access denied")
+#             return redirect('group', pk=pk)
 
-class DeleteGroupView(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class DeleteGroupView(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request, pk):
-        try:
-            group = RoomModel.objects.get(pk=pk)
+#     def get(self, request, pk):
+#         try:
+#             group = RoomModel.objects.get(pk=pk)
             
-            # Check permissions (only admin can delete)
-            if request.user != group.admin:
-                messages.error(request, "Only the group admin can delete this group")
-                return redirect('group', pk=pk)
+#             # Check permissions (only admin can delete)
+#             if request.user != group.admin:
+#                 messages.error(request, "Only the group admin can delete this group")
+#                 return redirect('group', pk=pk)
             
-            # Delete the group (messages will be automatically deleted due to CASCADE)
-            group_name = group.name
-            group.delete()
+#             # Delete the group (messages will be automatically deleted due to CASCADE)
+#             group_name = group.name
+#             group.delete()
             
-            messages.success(request, f"Group '{group_name}' and all its messages were deleted")
-            return redirect('groups')  # Redirect to group list
+#             messages.success(request, f"Group '{group_name}' and all its messages were deleted")
+#             return redirect('groups')  # Redirect to group list
             
-        except RoomModel.DoesNotExist:
-            messages.error(request, "Group not found")
-            return redirect('groups')
+#         except RoomModel.DoesNotExist:
+#             messages.error(request, "Group not found")
+#             return redirect('groups')
 
-class DeleteGroupMessage(LoginRequiredMixin, View):
-    login_url = '/'  # Redirect URL if not authenticated
-    redirect_field_name = 'next'  # Default (optional)
+# class DeleteGroupMessage(LoginRequiredMixin, View):
+#     login_url = '/'  # Redirect URL if not authenticated
+#     redirect_field_name = 'next'  # Default (optional)
 
-    def get(self, request, pk, message_id):
-        try:
-            # Get message and verify permissions
-            message = RoomMessagesModel.objects.get(
-                pk=message_id,
-                room__pk=pk,
-                room__participants=request.user  # User must be in group
-            )
+#     def get(self, request, pk, message_id):
+#         try:
+#             # Get message and verify permissions
+#             message = RoomMessagesModel.objects.get(
+#                 pk=message_id,
+#                 room__pk=pk,
+#                 room__participants=request.user  # User must be in group
+#             )
             
-            # Only allow delete if user is sender or group admin
-            if request.user == message.sender:
-                message.delete()
-                messages.success(request, f"Message deleted.")
-            else:
-                messages.error(request, "You can't delete this message")
+#             # Only allow delete if user is sender or group admin
+#             if request.user == message.sender:
+#                 message.delete()
+#                 messages.success(request, f"Message deleted.")
+#             else:
+#                 messages.error(request, "You can't delete this message")
                 
-        except RoomMessagesModel.DoesNotExist:
-            messages.error(request, "Message not found")
+#         except RoomMessagesModel.DoesNotExist:
+#             messages.error(request, "Message not found")
             
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+#         return HttpResponseRedirect(request.META.get('HTTP_REFERER'))

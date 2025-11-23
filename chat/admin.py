@@ -9,8 +9,8 @@ from .models import (
  )
 
 class MessageAdmin(ImportExportModelAdmin):
-    list_display = ['user', 'sender','recipient', 'body', 'is_read']
-    list_filter = ['is_read']
+    list_display = ['sender','recipient', 'body', 'created_at']
+    # list_filter = ['delivered']
 
 admin.site.register(Messages, MessageAdmin)
 

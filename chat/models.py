@@ -4,163 +4,71 @@ from datetime import timedelta
 
 from django.db import models
 from django.utils import timezone
-from django.db.models import Q, Max, Count
 from django.core.exceptions import ValidationError
+from django.db.models import Q, Max, Count, Case, When, IntegerField
+
 
 from userauths.models import CustomUser
 
 
-class Messages(models.Model):  # Changed to singular form (convention for model naming)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='message_owner')
-    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='sent_messages')
-    recipient = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='received_messages')
-    body = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)  # More explicit than 'date'
-    is_read = models.BooleanField(default=False)
+class Messages(models.Model):
+    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="sent")
+    recipient = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="received")
 
-    class Meta:
-        ordering = ['-created_at']  # Default ordering for queries
-        indexes = [
-            models.Index(fields=['user', 'recipient']),  # For faster lookups
-            models.Index(fields=['is_read']),
-        ]
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    delivered = models.BooleanField(default=False)
+    seen = models.BooleanField(default=False)
+
+    deleted_for_sender = models.BooleanField(default=False)
+    deleted_for_recipient = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Message from {self.sender} to {self.recipient}"
-
-    # Custom model method
-    @classmethod
-    def sendMessage(cls, from_user, to_user, body):
-        """
-        Creates and saves both sender and recipient copies of a message.
-        Returns a tuple of (sender_message, recipient_message)
-        """
-        # Create sender copy
-        sender_msg = cls.objects.create(
-            user=from_user,
-            sender=from_user,
-            recipient=to_user,
-            body=body,
-            is_read=True
-        )
-
-        # Create recipient copy
-        recipient_msg = cls.objects.create(
-            user=to_user,
-            sender=from_user,
-            recipient=to_user,
-            body=body,
-            is_read=False
-        )
-
-        return sender_msg, recipient_msg
+        return f"{self.sender} → {self.recipient}"
 
     @classmethod
-    def getConversationsList(cls, user):
-        """
-        Returns all conversations for a user with the latest message info
-        and unread counts for each conversation partner.
-        """
-        # Get all unique conversation partners
-        partners = CustomUser.objects.filter(
-            Q(received_messages__sender=user) | 
-            Q(sent_messages__recipient=user)
+    def fetchUserConversations(user_id):
+        # Identify all chat partners
+        partners = Messages.objects.filter(
+            Q(sender_id=user_id) | Q(recipient_id=user_id)
+        ).values(
+            partner=Case(
+                When(sender_id=user_id, then='recipient_id'),
+                default='sender_id',
+                output_field=IntegerField()
+            )
         ).distinct()
-        
-        conversations = []
-        
-        for partner in partners:
-            # Get the last message in the conversation
-            last_message = cls.objects.filter(
-                Q(sender=user, recipient=partner) | 
-                Q(sender=partner, recipient=user)
-            ).order_by('-created_at').first()
 
-            # Skip if no messages exist with this partner
-            if not last_message:
-                continue
+        conversation_list = []
 
-            # Count unread messages from this partner
-            unread_count = cls.objects.filter(
-                recipient=user,
-                sender=partner,
+        for p in partners:
+            partner_id = p["partner"]
+
+            # Last message exchanged between user & partner
+            last_msg = Messages.objects.filter(
+                Q(sender_id=user_id, recipient_id=partner_id) |
+                Q(sender_id=partner_id, recipient_id=user_id)
+            ).order_by("-created_at").first()
+
+            # Unread count
+            unread_count = Messages.objects.filter(
+                sender_id=partner_id,
+                recipient_id=user_id,
                 is_read=False
             ).count()
 
-            conversations.append({
-                'partner': partner,
-                'last_message': last_message,
-                'last_message_body': last_message.body if last_message else '',
-                'unread_count': unread_count,
-                'is_sent_last': last_message.sender == user if last_message else False,
-                'last_message_time': last_message.created_at if last_message else None
+            conversation_list.append({
+                "partner_id": partner_id,
+                "last_message": last_msg.body,
+                "last_message_time": last_msg.created_at,
+                "unread": unread_count
             })
-        
-        # Sort by last message time (newest first)
-        conversations.sort(
-            key=lambda x: x['last_message_time'] or timezone.datetime.min, 
-            reverse=True
-        )
-        
-        return conversations
 
-    @classmethod
-    def getConversation(cls, user, partner_id):
-        partner = CustomUser.objects.get(pk=partner_id)
+        # Sort by last_message_time (DESC)
+        conversation_list.sort(key=lambda x: x["last_message_time"], reverse=True)
 
-        cls.objects.filter(
-            user=user,          # Messages belonging to the current user (recipient's copy)
-            sender=partner,     # Messages from this specific conversation partner
-            recipient=user,     # Confirms these are received messages (not sent)
-            is_read=False       # Only unread messages
-        ).update(is_read=True)  # Marks them as read
-        
-        # Get all messages where user is involved (both sent and received)
-        messages = cls.objects.filter(
-            Q(user=user) &  # Only fetch messages belonging to current user
-            (
-                (Q(sender=user) & Q(recipient=partner)) |
-                (Q(sender=partner) & Q(recipient=user))
-            )
-        ).order_by('created_at')
-        
-        # Annotate each message with whether the recipient has read their copy
-        for message in messages:
-            if message.sender == user:
-                # For sent messages, check if recipient's copy is read
-                recipient_copy = cls.objects.filter(
-                    user=partner,
-                    sender=user,
-                    recipient=partner,
-                    body=message.body,
-                    created_at__range=(
-                        message.created_at - timedelta(seconds=5),  # 5-second window before
-                        message.created_at + timedelta(seconds=5)   # 5-second window after
-                    )
-                ).first()
-                
-                message.recipient_has_read = recipient_copy.is_read if recipient_copy else False
-        
-        return {
-            'partner': partner,
-            'messages': messages
-        }
-    
-    def mark_as_read(self):
-        """Marks the message as read if it isn't already."""
-        if not self.is_read:
-            self.is_read = True
-            self.save(update_fields=['is_read'])
-
-
-
-# from chat.models import *
-# k = CustomUser.objects.get(pk=1)
-# a = CustomUser.objects.get(pk=2)
-# b = CustomUser.objects.get(pk=3)
-# c = CustomUser.objects.get(pk=4)
-# d = CustomUser.objects.get(pk=5)
-# Message.get_conversations(user=k)
+        return conversation_list
 
 def userDirectoryPath(instance, filename):
     """Generate path for user uploads using username instead of ID"""
