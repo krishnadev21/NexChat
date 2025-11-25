@@ -29,29 +29,22 @@ class Messages(models.Model):
 
     @classmethod
     def fetchUserConversations(user_id):
-        # Identify all chat partners
-        partners = Messages.objects.filter(
-            Q(sender_id=user_id) | Q(recipient_id=user_id)
-        ).values(
-            partner=Case(
-                When(sender_id=user_id, then='recipient_id'),
-                default='sender_id',
-                output_field=IntegerField()
-            )
+        
+        partners = CustomUser.objects.filter(
+            Q(sent__recipient_id=user_id) |
+            Q(received__sender_id=user_id)
         ).distinct()
 
         conversation_list = []
 
-        for p in partners:
-            partner_id = p["partner"]
-
-            # Last message exchanged between user & partner
+        for partner in partners:
+            partner_id = partner.id
+            
             last_msg = Messages.objects.filter(
                 Q(sender_id=user_id, recipient_id=partner_id) |
                 Q(sender_id=partner_id, recipient_id=user_id)
             ).order_by("-created_at").first()
 
-            # Unread count
             unread_count = Messages.objects.filter(
                 sender_id=partner_id,
                 recipient_id=user_id,
@@ -59,18 +52,18 @@ class Messages(models.Model):
             ).count()
 
             conversation_list.append({
-                "partner_id": partner_id,
-                "last_message": last_msg.body,
-                "last_message_time": last_msg.created_at,
+                "partner": partner,
+                "last_message": last_msg.body if last_msg else "",
+                "last_message_time": last_msg.created_at if last_msg else None,
                 "unread": unread_count
             })
 
-        # Sort by last_message_time (DESC)
-        conversation_list.sort(key=lambda x: x["last_message_time"], reverse=True)
+        conversation_list.sort(key=lambda x: x["last_message_time"] or 0, reverse=True)
 
-        return conversation_list
+        return conversation_list  # <-- FIXED
 
 def userDirectoryPath(instance, filename):
+
     """Generate path for user uploads using username instead of ID"""
     # Get file extension
     ext = filename.split('.')[-1]
@@ -139,6 +132,7 @@ class RoomModel(models.Model):
 
 
 class RoomMessagesModel(models.Model):
+
     room = models.ForeignKey(
         RoomModel, 
         on_delete=models.CASCADE,
