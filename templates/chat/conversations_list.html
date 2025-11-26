@@ -16,7 +16,8 @@
           <!-- Right side - Icons -->
           <div class="flex items-center gap-4">
             <!-- Groups Icon -->
-            <form method="get" action="{% url 'groups' %}">
+             {% comment %} {% url 'groups' %} {% endcomment %}
+            <form method="get" action=""></form> 
               {% csrf_token %}
               <button type="submit" class="text-[#fff] hover:text-[#d1d5db] transition-colors cursor-pointer" title="Groups">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
@@ -94,7 +95,7 @@
                         {{ conversation.partner.username }}
                       </p>
                       <p class="text-sm text-[#8696A0] truncate">
-                        {{ conversation.last_message.body|truncatechars:30 }}
+                        {{ conversation.last_message|truncatechars:30 }}
                       </p>
                     </div>
                   </div>
@@ -102,7 +103,7 @@
                   <!-- Timestamp -->
                   <div class="flex flex-col items-end space-y-1">
                     <span class="text-xs text-[#8696A0] whitespace-nowrap">
-                      {{ conversation.last_message.created_at|timesince }} ago
+                      {{ conversation.last_message_time|timesince }} ago
                     </span>
                     {% if message.unread > 0 %}
                     <span class="sr-only">Unread messages</span>
@@ -122,7 +123,8 @@
 
       <!-- Fixed Green + Button -->
       <div class="sticky bottom-4 right-4 float-right mr-4 mb-4">  <!-- Changed to sticky positioning -->
-        <a href="{% url 'search-users' %}" class="bg-[#00A884] text-white rounded-full p-3 shadow-lg hover:bg-[#008069] transition-colors duration-200 flex items-center justify-center w-12 h-12" title="New User">
+        {% comment %} {% url 'search-users' %} {% endcomment %}
+        <a href="" class="bg-[#00A884] text-white rounded-full p-3 shadow-lg hover:bg-[#008069] transition-colors duration-200 flex items-center justify-center w-12 h-12" title="New User">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>

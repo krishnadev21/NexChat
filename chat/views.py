@@ -75,13 +75,18 @@ class fetchUserConversationsView(LoginRequiredMixin, View):
 #             "created_at": msg.created_at.isoformat()
 #         })
 
-# class ConversationView(LoginRequiredMixin, View):
-#     login_url = '/'  # Redirect URL if not authenticated
-#     redirect_field_name = 'next'  # Default (optional)
+class getConversationView(LoginRequiredMixin, View):
+    login_url = '/'  # Redirect URL if not authenticated
+    redirect_field_name = 'next'  # Default (optional)
 
-#     def get(self, request, partner_id):
-#         conversation = Message.getConversation(user=request.user, partner_id=partner_id)
-#         return render(request, 'chat/conversation.html', context={'conversation': conversation})
+    def get(self, request, partner_id):
+        try:
+            conversation = Messages.getConversation(user=request.user, partner_id=partner_id)
+
+        except Exception as e:
+            messages.error(request, f"Error loading conversations: {str(e)}")
+
+        return render(request, 'chat/conversation.html', context={'conversation': conversation})
 
 # class SendMessageView(LoginRequiredMixin, View):
 #     login_url = '/'  # Redirect URL if not authenticated

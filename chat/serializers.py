@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Message
+from .models import Messages
 from userauths.models import CustomUser
 
 class CustomUserSerializer(serializers.ModelSerializer):
@@ -13,7 +13,7 @@ class MessageSerializer(serializers.ModelSerializer):
     recipient = CustomUserSerializer()
 
     class Meta:
-        model = Message
+        model = Messages
         fields = ['id', 'body', 'created_at', 'is_read', 'sender', 'recipient']
 
 class ConversationSerializer(serializers.Serializer):

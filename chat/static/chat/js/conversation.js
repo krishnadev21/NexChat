@@ -83,6 +83,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusSymbol = tickSymbols[status] || tickSymbols.pending;
     
     messageDiv.innerHTML = `
+      <!-- Avatar -->
+      <img
+        src="${isCurrentUser ? userAvatar : recipientAvatar}" id="temp-${tempId}"
+        alt="{{ message.sender.username }}"
+        class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+        onerror="this.src='/static/images/default-avatar.jpg'"
+      />
+
+      <!-- Message Bubble -->  
       <div class="max-w-[65%] rounded-br-[40px] rounded-bl-[40px] px-5 py-2
           ${isCurrentUser ? "rounded-tl-[40px] rounded-tr-[6px] bg-[#005C4B]" : "rounded-tr-[40px] rounded-tl-[6px] bg-[#202C33]"}">
         <p class="text-[#E9EDEF]">${message}</p>

@@ -22,7 +22,7 @@
       <div class="flex items-center space-x-3">
         <!-- Back button -->
         <a
-          href="{% url 'conversations-list' %}"
+          href="{% url 'user-conversations' %}"
           class="text-white"
           title="Back"
         >
@@ -59,7 +59,8 @@
     </div>
 
     <!-- Clear chats Icon -->
-    <a href="{% url 'delete-conversation' conversation.partner.id %}">
+     {% comment %} {% url 'delete-conversation' conversation.partner.id %} {% endcomment %}
+    <a href="">
       <button class="text-[#fff] cursor-pointer" title="Clear chats">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -135,7 +136,8 @@
 
               {% if message.sender == request.user %}
               <!-- Delete Icon -->
-              <a href="{% url 'delete-message' message.id %}">
+               {% comment %} {% url 'delete-message' message.id %} {% endcomment %}
+              <a href="">
                 <button
                   class="text-[#E9EDEF] hover:text-white p-1 cursor-pointer"
                   title="Delete"

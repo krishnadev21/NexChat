@@ -28,7 +28,7 @@ class Messages(models.Model):
         return f"{self.sender} → {self.recipient}"
 
     @classmethod
-    def fetchUserConversations(user_id):
+    def fetchUserConversations(cls, user_id):
         
         partners = CustomUser.objects.filter(
             Q(sent__recipient_id=user_id) |
@@ -48,19 +48,58 @@ class Messages(models.Model):
             unread_count = Messages.objects.filter(
                 sender_id=partner_id,
                 recipient_id=user_id,
-                is_read=False
+                seen=False
             ).count()
 
             conversation_list.append({
                 "partner": partner,
                 "last_message": last_msg.body if last_msg else "",
                 "last_message_time": last_msg.created_at if last_msg else None,
-                "unread": unread_count
+                "unread_count": unread_count
             })
 
         conversation_list.sort(key=lambda x: x["last_message_time"] or 0, reverse=True)
-
+        
         return conversation_list  # <-- FIXED
+    
+    @classmethod
+    def getConversation(cls, user, partner_id):
+        """
+        Returns:
+        {
+            'partner': CustomUser instance,
+            'messages': List of Messages,
+        }
+        """
+
+        # Fetch partner safely
+        try:
+            partner = CustomUser.objects.get(id=partner_id)
+        except CustomUser.DoesNotExist:
+            return None  # Or raise exception
+
+        # Fetch all messages exchanged (excluding deleted-for-user)
+        messages = (
+            Messages.objects.filter(
+                Q(sender=user, recipient=partner, deleted_for_sender=False) |
+                Q(sender=partner, recipient=user, deleted_for_recipient=False)
+            )
+            .select_related("sender", "recipient")  # PERFORMANCE BOOST
+            .order_by("created_at")
+        )
+
+        # Mark messages as seen
+        Messages.objects.filter(
+            sender=partner,
+            recipient=user,
+            seen=False
+        ).update(seen=True)
+
+        return {
+            "partner": partner,
+            "messages": messages,
+        }
+
 
 def userDirectoryPath(instance, filename):
 

@@ -1,24 +1,25 @@
 from django.urls import path
 
 from .views import (
-    GroupView,
-    GroupListView,
-    CreateGroupView,
-    SaveMessageView,
-    SendMessageView,
-    SearchUsersView,
+    # GroupView,
+    # GroupListView,
+    # CreateGroupView,
+    # SaveMessageView,
+    # SendMessageView,
+    # SearchUsersView,
     fetchUserConversationsView,
-    DeleteMessageView,
-    DeleteConversationView,
-    ConversationsListView,
-    DeleteGroupMessage,
-    DeleteGroupView,
+    getConversationView,
+    # DeleteMessageView,
+    # DeleteConversationView,
+    # ConversationsListView,
+    # DeleteGroupMessage,
+    # DeleteGroupView,
 )
 
 urlpatterns = [
     # Conversation
     path('user-conversations/', fetchUserConversationsView.as_view(), name='user-conversations'),
-    # path('conversation/<int:partner_id>', ConversationView.as_view(), name='conversation'),
+    path('conversation/<int:partner_id>', getConversationView.as_view(), name='conversation'),
     # path('search-users/', SearchUsersView.as_view(), name='search-users'),
     # path('delete-message/<int:pk>', DeleteMessageView.as_view(), name='delete-message'),
     # path('save-message/', SaveMessageView.as_view(), name='save-message'),
