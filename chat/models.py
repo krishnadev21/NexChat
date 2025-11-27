@@ -24,8 +24,12 @@ class Messages(models.Model):
     deleted_for_sender = models.BooleanField(default=False)
     deleted_for_recipient = models.BooleanField(default=False)
 
+    class Meta:
+        db_table = 'messages'
+        ordering = ['-created_at']
+
     def __str__(self):
-        return f"{self.sender} → {self.recipient}"
+        return f"{self.sender} → {self.recipient}: {self.body[:20]}..."
 
     @classmethod
     def fetchUserConversations(cls, user_id):
@@ -100,7 +104,16 @@ class Messages(models.Model):
             "messages": messages,
         }
 
+    @classmethod
+    def saveMessage(cls, user_id, recipient_id, body):
+        msg = Messages.objects.create(
+            user_id=user_id,
+            recipient_id=recipient_id,
+            body=body
+        )
 
+        return msg.id, msg.created_at
+    
 def userDirectoryPath(instance, filename):
 
     """Generate path for user uploads using username instead of ID"""

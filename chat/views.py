@@ -45,22 +45,22 @@ class fetchUserConversationsView(LoginRequiredMixin, View):
             'user_conversations': user_conversations_list
         })
     
-# class SearchUsersView(LoginRequiredMixin, View):
-#     login_url = '/'  # Redirect URL if not authenticated
-#     redirect_field_name = 'next'  # Default (optional)
+class UserListView(LoginRequiredMixin, View):
+    login_url = '/'  # Redirect URL if not authenticated
+    redirect_field_name = 'next'  # Default (optional)
 
-#     def get(self, request):
-#         try:
-#             searched_users = CustomUser.objects.exclude(
-#                 id=request.user.id
-#             ).order_by('username')[:20]  # Limit to 20 random users
+    def get(self, request):
+        try:
+            searched_users = CustomUser.objects.exclude(
+                id=request.user.id
+            ).order_by('username')[:20]  # Limit to 20 random users
             
-#         except Exception as e:
-#             messages.error(request, f"{str(e)}")
+        except Exception as e:
+            messages.error(request, f"{str(e)}")
         
-#         return render(request, 'chat/search_users.html', {
-#             'searched_users': searched_users
-#         })
+        return render(request, 'chat/list_users.html', {
+            'searched_users': searched_users
+        })
 
 # class SaveMessageView(APIView):
 #     def post(self, request):
@@ -74,6 +74,27 @@ class fetchUserConversationsView(LoginRequiredMixin, View):
 #             "message_id": msg.id,
 #             "created_at": msg.created_at.isoformat()
 #         })
+
+# chat/views.py
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .serializers import MessageSerializer
+
+@api_view(["POST"])
+def api_save_message(request):
+
+    serializer = MessageCreateSerializer(data=request.data)
+
+    if serializer.is_valid():
+        sender_msg, recipient_msg = serializer.save()
+
+        return Response({
+            "message_id": sender_msg.id,   # official message ID
+            "timestamp": sender_msg.created_at.isoformat(),
+        })
+
+    return Response(serializer.errors, status=400)
+
 
 class getConversationView(LoginRequiredMixin, View):
     login_url = '/'  # Redirect URL if not authenticated
