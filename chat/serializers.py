@@ -6,20 +6,20 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'username', 'email', 'first_name', 'last_name']
 
-class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(read_only=True)
-    recipient = UserSerializer(read_only=True)
-    sender_id = serializers.IntegerField(write_only=True)
-    recipient_id = serializers.IntegerField(write_only=True)
+# class MessageSerializer(serializers.ModelSerializer):
+#     sender = UserSerializer(read_only=True)
+#     recipient = UserSerializer(read_only=True)
+#     sender_id = serializers.IntegerField(write_only=True)
+#     recipient_id = serializers.IntegerField(write_only=True)
 
-    class Meta:
-        model = Messages
-        fields = [
-            'id', 'sender', 'recipient', 'sender_id', 'recipient_id',
-            'body', 'created_at', 'delivered', 'seen',
-            'deleted_for_sender', 'deleted_for_recipient'
-        ]
-        read_only_fields = ['id', 'created_at', 'delivered', 'seen']
+#     class Meta:
+#         model = Messages
+#         fields = [
+#             'id', 'sender', 'recipient', 'sender_id', 'recipient_id',
+#             'body', 'created_at', 'delivered', 'seen',
+#             'deleted_for_sender', 'deleted_for_recipient'
+#         ]
+#         read_only_fields = ['id', 'created_at', 'delivered', 'seen']
 
 class MessageCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,3 +40,9 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         if data['sender_id'] == data['recipient_id']:
             raise serializers.ValidationError("Cannot send message to yourself.")
         return data
+    
+    def create(self, validated_data):
+        # Any additional logic before creation goes here
+        # validated_data['delivered'] = True
+        return super().create(validated_data)
+    

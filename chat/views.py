@@ -10,16 +10,18 @@ from django.http import (
 
 from chat.models import CustomUser
 from userauths.forms import CustomRegisterForm
-from .serializers import ConversationSerializer
 from .models import (
     Messages,
     RoomModel,
     RoomMessagesModel,
 )
 
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+
+from .serializers import MessageCreateSerializer
 
 from .forms import (
     RoomForm,
@@ -75,25 +77,32 @@ class UserListView(LoginRequiredMixin, View):
 #             "created_at": msg.created_at.isoformat()
 #         })
 
-# chat/views.py
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .serializers import MessageSerializer
-
-@api_view(["POST"])
-def api_save_message(request):
-
-    serializer = MessageCreateSerializer(data=request.data)
-
-    if serializer.is_valid():
-        sender_msg, recipient_msg = serializer.save()
-
-        return Response({
-            "message_id": sender_msg.id,   # official message ID
-            "timestamp": sender_msg.created_at.isoformat(),
-        })
-
-    return Response(serializer.errors, status=400)
+class SaveMessageView(APIView):
+    def post(self, request):
+        serializer = MessageCreateSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            try:
+                message = serializer.save()
+                
+                return Response({
+                    "success": True,
+                    "message_id": message.id,
+                    "timestamp": message.created_at.isoformat(),
+                }, status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                return Response({
+                    "success": False,
+                    "error": f"Failed to create message: {str(e)}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        else:
+            return Response({
+                "success": False,
+                "error": "Validation failed",
+                "details": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class getConversationView(LoginRequiredMixin, View):
@@ -105,6 +114,7 @@ class getConversationView(LoginRequiredMixin, View):
             conversation = Messages.getConversation(user=request.user, partner_id=partner_id)
 
         except Exception as e:
+            print(f' ===================? {e}')
             messages.error(request, f"Error loading conversations: {str(e)}")
 
         return render(request, 'chat/conversation.html', context={'conversation': conversation})

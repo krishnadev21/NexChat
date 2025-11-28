@@ -99,6 +99,8 @@ class Messages(models.Model):
             seen=False
         ).update(seen=True)
 
+        print(f'12345678900945345743058325073984532')
+
         return {
             "partner": partner,
             "messages": messages,
