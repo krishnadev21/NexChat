@@ -10,7 +10,7 @@
           <!-- Left side (Back button + Title) -->
           <div class="flex items-center space-x-3">
             <!-- Back button -->
-            <a href="{% url 'conversations-list' %}" class="text-white" title="Back">
+            <a href="{% url 'user-conversations' %}" class="text-white" title="Back">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
               </svg>
@@ -22,7 +22,7 @@
           <!-- Right side - Icons -->
           <div class="flex items-center gap-4">
             <!-- Chat Icon -->
-            <form method="get" action="{% url 'conversations-list' %}">
+            <form method="get" action="{% url 'user-conversations' %}">
               {% csrf_token %}
               <button type="submit" class="text-[#fff] hover:text-[#d1d5db] transition-colors cursor-pointer" title="Groups">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">

@@ -141,44 +141,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
  };
 
-// function renderPendingMessage({ temp_id, message, status }) {
-//   const el = document.createElement("div");
-//   el.className = `message ${status}`;
-//   el.dataset.tempId = temp_id;
-//   el.innerHTML = `
-//     <p class="text-white">${message}</p>
-//     <span class="text-white status">${status}</span>
-//   `;
-//   messagesContainer.appendChild(el);
-
-//   // Return helper object for later UI updates
-//   return {
-//     el,
-//     updateStatus(newStatus) {
-//       el.classList.remove("pending", "failed", "sent", "delivered");
-//       el.classList.add(newStatus);
-//       el.querySelector(".status").textContent = newStatus;
-//     },
-//     replaceWithConfirmed({ message_id, timestamp, message }) {
-//       el.dataset.messageId = message_id;
-//       el.querySelector("p").textContent = message;
-//       el.querySelector(".status").textContent = "delivered";
-//       el.classList.remove("pending");
-//       el.classList.add("delivered");
-//     },
-//     showRetryButton(callback) {
-//       const btn = document.createElement("button");
-//       btn.textContent = "Retry";
-//       btn.onclick = callback;
-//       el.appendChild(btn);
-//     },
-//     getText() {
-//       return el.querySelector("p").textContent;
-//     },
-//   };
-// }
-
-
   chatSocket.onmessage = (e) => {
     // Parse the received message
     const data = JSON.parse(e.data);

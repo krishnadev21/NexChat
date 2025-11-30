@@ -16,8 +16,7 @@
           <!-- Right side - Icons -->
           <div class="flex items-center gap-4">
             <!-- Groups Icon -->
-             {% comment %} {% url 'groups' %} {% endcomment %}
-            <form method="get" action=""></form> 
+            <form method="get" action="{% url 'groups' %}">
               {% csrf_token %}
               <button type="submit" class="text-[#fff] hover:text-[#d1d5db] transition-colors cursor-pointer" title="Groups">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">

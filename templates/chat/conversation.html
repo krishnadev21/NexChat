@@ -184,7 +184,7 @@
 
           <!-- Timestamp and read receipts -->
           <p class="text-xs text-[#8696A0] text-right mt-1">
-            {{ message.created_at|time:"H:i" }}
+            {{ message.created_at|time:"g:i A"|lower }}  <!-- 3:45 pm -->
             {% if message.sender == request.user %} 
               {% if message.recipientId_has_read %}
                 <span class="ml-1 text-[#53BDEB]">✓✓</span>
