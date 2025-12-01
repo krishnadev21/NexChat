@@ -5,7 +5,7 @@
   <div class="p-3 border-b border-[#2F3B43] bg-[#202C33] flex justify-between items-center">
       <div class="flex items-center space-x-3">
         <!-- Back button -->
-        <a href="{% url 'conversations-list' %}" class="text-white" title="Back">
+        <a href="{% url 'user-conversations' %}" class="text-white" title="Back">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
           </svg>
@@ -28,7 +28,8 @@
 
     <!-- Delete Group Icon -->
     {% if user == group.admin %}
-    <form method="get" action="{% url 'delete-group' pk=group.id %}" 
+    {% comment %} {% url 'delete-group' pk=group.id %} {% endcomment %}
+    <form method="get" action="" 
         onsubmit="return confirm('Are you sure? This will delete ALL messages in this group permanently!')">
         {% csrf_token %}
         <button type="submit" class="btn text-[#fff] cursor-pointer" title="Delete group">
