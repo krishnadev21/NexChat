@@ -4,8 +4,8 @@ from import_export.admin import ImportExportModelAdmin
 
 from .models import (
     Messages,
-    RoomModel,
-    RoomMessagesModel,
+    GroupModel,
+    GroupMessagesModel,
  )
 
 class MessageAdmin(ImportExportModelAdmin):
@@ -17,9 +17,9 @@ admin.site.register(Messages, MessageAdmin)
 class RoomAdmin(ImportExportModelAdmin):
     list_display = ['name', 'admin', 'created_at', 'description']
     
-admin.site.register(RoomModel, RoomAdmin)
+admin.site.register(GroupModel, RoomAdmin)
 
 class RoomMessagesAdmin(ImportExportModelAdmin):
     list_display = ['room', 'sender', 'message']
 
-admin.site.register(RoomMessagesModel, RoomMessagesAdmin)
+admin.site.register(GroupMessagesModel, RoomMessagesAdmin)

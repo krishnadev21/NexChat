@@ -1,4 +1,5 @@
 import os
+import uuid
 from PIL import Image
 from datetime import timedelta
 
@@ -7,9 +8,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db.models import Q, Max, Count, Case, When, IntegerField
 
-
 from userauths.models import CustomUser
-
 
 class Messages(models.Model):
     sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="sent")
@@ -99,8 +98,6 @@ class Messages(models.Model):
             seen=False
         ).update(seen=True)
 
-        print(f'12345678900945345743058325073984532')
-
         return {
             "partner": partner,
             "messages": messages,
@@ -117,22 +114,19 @@ class Messages(models.Model):
         return msg.id, msg.created_at
     
 def userDirectoryPath(instance, filename):
-
-    """Generate path for user uploads using username instead of ID"""
-    # Get file extension
     ext = filename.split('.')[-1]
-    # Generate new filename (avatar.{ext})
-    new_filename = f'avatar.{ext}'
-    return f'users/{instance.name}/{new_filename}'
+    filename = f"{uuid.uuid4()}.{ext}"
+    return f"room_avatars/{instance.id}/{filename}"
 
-class RoomModel(models.Model):
-    # Basic fields
-    name = models.CharField(max_length=100, blank=False, null=False)
-    participants = models.ManyToManyField(CustomUser, related_name='room_participants')
+class GroupModel(models.Model):
+    name = models.CharField(max_length=100)
+    participants = models.ManyToManyField(
+        CustomUser, 
+        related_name='room_participants'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # For group chats
     admin = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -141,11 +135,9 @@ class RoomModel(models.Model):
         related_name='admin_of_room'
     )
 
-    # Avatar image with better handling
     avatar = models.ImageField(
         upload_to=userDirectoryPath,
-        default='default.jpg',
-        help_text='Profile picture (300x300 recommended)'
+        default='default.jpg'
     )
 
     is_active = models.BooleanField(default=True)
@@ -155,42 +147,30 @@ class RoomModel(models.Model):
         ordering = ['-updated_at']
 
     def __str__(self):
-        if self.name:
-            return f"Room {self.name} ({self.admin})"
-        
+        return f"{self.name} (Admin: {self.admin})"
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
-        img = Image.open(self.avatar.path)
-        if img.height > 300 or img.width > 300:
-            output_size = (300, 300) # (height, width)
-            img.thumbnail(output_size)
-            img.save(self.avatar.path)
+        # Resize avatar only if not default
+        if self.avatar and self.avatar.name != 'default.jpg':
+            avatar_path = self.avatar.path
 
-    def handleUsernameChange(self, old_username):
-        """Handle avatar file movement when username changes"""
-        old_path = self.avatar.path
-        if os.path.exists(old_path):
-            # Delete the old directory if empty
             try:
-                os.removedirs(os.path.dirname(old_path))
-            except OSError:
-                pass  # Directory not empty or other error
+                img = Image.open(avatar_path)
+            except (FileNotFoundError, ValueError):
+                return  # Ignore if file missing or corrupted
 
-    def get_display_name(self, user=None):
-        """Get a display name for the room"""
-        if self.name:
-            return self.name
-        
-        return f"Group Chat ({self.participants.count()} members)"
+            # Resize only if needed
+            if img.height > 300 or img.width > 300:
+                img.thumbnail((300, 300))
+                img.save(avatar_path)
 
-
-class RoomMessagesModel(models.Model):
-
+class GroupMessagesModel(models.Model):
     room = models.ForeignKey(
-        RoomModel, 
+        GroupModel,
         on_delete=models.CASCADE,
-        related_name='messages'  # This creates the reverse relationship
+        related_name='messages'
     )
     sender = models.ForeignKey(
         CustomUser,
@@ -202,16 +182,20 @@ class RoomMessagesModel(models.Model):
     read = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['timestamp']
+        ordering = ["timestamp"]
+        indexes = [
+            models.Index(fields=["room", "timestamp"]),
+            models.Index(fields=["sender"]),
+        ]
 
     def __str__(self):
-        return f"Message from {self.sender} in {self.room}"
+        return f"{self.sender} → {self.room}: {self.message[:20]}"
 
     def save(self, *args, **kwargs):
-        # Verify sender is a room participant before saving
         if not self.room.participants.filter(pk=self.sender.pk).exists():
-            raise ValidationError("Sender must be a room participant")
+            raise ValidationError("Sender must be a participant of this room.")
         super().save(*args, **kwargs)
+
 
 
 

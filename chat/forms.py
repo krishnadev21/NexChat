@@ -1,8 +1,8 @@
 from django import forms
 
 from .models import (
-    RoomModel,
-    RoomMessagesModel,
+    GroupModel,
+    GroupMessagesModel,
 )
 
 from userauths.models import CustomUser
@@ -25,7 +25,7 @@ class RoomForm(forms.ModelForm):
     )
 
     class Meta:
-        model = RoomModel
+        model = GroupModel
         fields = ['name', 'participants', 'admin', 'avatar', 'description']
         widgets = {
             'avatar': forms.ClearableFileInput(attrs={
@@ -73,7 +73,7 @@ class RoomForm(forms.ModelForm):
         
         # Case-insensitive duplicate check (optimized)
         if hasattr(self, 'user') and self.user:
-            qs = RoomModel.objects.filter(name__iexact=name, admin=self.user)
+            qs = GroupModel.objects.filter(name__iexact=name, admin=self.user)
             if self.instance.pk:  # Skip current instance during updates
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():

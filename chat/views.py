@@ -12,8 +12,8 @@ from chat.models import CustomUser
 from userauths.forms import CustomRegisterForm
 from .models import (
     Messages,
-    RoomModel,
-    RoomMessagesModel,
+    GroupModel,
+    GroupMessagesModel,
 )
 
 from rest_framework import status
@@ -219,7 +219,7 @@ class GroupListView(LoginRequiredMixin, View):
     def get(self, request):
         try:
             # Get groups where user is a participant
-            groups = RoomModel.objects.filter(
+            groups = GroupModel.objects.filter(
                 participants=request.user
             ).distinct().order_by('-created_at')
 
@@ -242,7 +242,7 @@ class GroupView(LoginRequiredMixin, View):
     def get(self, request, pk):
         try:
             # Get the group with prefetched messages and participants
-            group = RoomModel.objects.get(pk=pk)
+            group = GroupModel.objects.get(pk=pk)
             
             messages = group.messages.all().order_by('timestamp')
             print(f'Messages --> {messages}')
@@ -257,11 +257,11 @@ class GroupView(LoginRequiredMixin, View):
     
     def post(self, request, pk):
         try:
-            group = RoomModel.objects.get(pk=pk)
+            group = GroupModel.objects.get(pk=pk)
             body = request.POST.get('body', '').strip()
             
             # Create the message
-            RoomMessagesModel.objects.create(
+            GroupMessagesModel.objects.create(
                 room=group,
                 sender=request.user,
                 message=body
@@ -269,7 +269,7 @@ class GroupView(LoginRequiredMixin, View):
             
             return JsonResponse({"message": f"{request.user.username} send a message on {group.name}."})
             
-        except RoomModel.DoesNotExist:
+        except GroupModel.DoesNotExist:
             messages.error(request, "Group not found or access denied")
             return redirect('group', pk=pk)
 
