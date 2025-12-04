@@ -165,6 +165,16 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    if (data.type === "system") {
+        const tempId = data.temp_id || `rcv-${Date.now()}`;
+        createMessageElement({
+          isCurrentUser: false,
+          message: data.message,
+          tempId: tempId,
+          status: "delivered"
+        });
+    }
+
     if (data.type === "chat") {
       // Check if the message was sent by the current user
       const isCurrentUser = Number(userId) === Number(data.sender_id);

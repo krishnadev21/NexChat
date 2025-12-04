@@ -9,9 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatData = document.getElementById("chat-container").dataset;
   const groupId = chatData.groupId;
   const userId = chatData.userId;
-  const recipientAvatar = chatData.recipientAvatar;
-  const recipientId = chatData.recipientId;
-  const userAvatar = chatData.userAvatar;
+  
   const tickSymbols = {
     pending: "⏲",
     received_by_server: "🗸",  // Use the character directly
