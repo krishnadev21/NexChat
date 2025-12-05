@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatData = document.getElementById("chat-container").dataset;
   const groupId = chatData.groupId;
   const userId = chatData.userId;
+  const userAvatar = chatData.userAvatar;
   
   const tickSymbols = {
     pending: "⏲",
@@ -30,8 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Web Socket Connection
   const chatSocket = new WebSocket(
-    // `ws://${window.location.host}/ws/socket-server/${recipientId}`
-    `ws://127.0.0.1:8001/ws/chat/${userId}/${recipientId}`
+    `ws://127.0.0.1:8001/ws/group/${userId}/${groupId}`
   );
 
   // In-memory map for pending messages
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Create message container
- const createMessageElement = ({isCurrentUser, message, tempId, status}) => {
+ const createMessageElement = ({isCurrentUser, senderAvatar, message, tempId, status}) => {
     const messageDiv = document.createElement('div');
     messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
     messageDiv.id = `temp-${tempId}`;
@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     messageDiv.innerHTML = `
       <!-- Avatar -->
       <img
-        src="${isCurrentUser ? userAvatar : recipientAvatar}" id="temp-${tempId}"
+        src="${senderAvatar}" id="temp-${tempId}"
         alt="{{ message.sender.username }}"
         class="w-10 h-10 rounded-full object-cover flex-shrink-0"
         onerror="this.src='/static/images/default-avatar.jpg'"
@@ -163,6 +163,18 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    if (data.type === "system") {
+        const tempId = data.temp_id || `rcv-${Date.now()}`;
+
+        createMessageElement({
+          isCurrentUser: false,
+          senderAvatar: userAvatar,
+          message: data.message,
+          tempId: tempId,
+          status: "delivered"
+        });
+    }
+
     if (data.type === "chat") {
       // Check if the message was sent by the current user
       const isCurrentUser = Number(userId) === Number(data.sender_id);
@@ -236,12 +248,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const messageInput = document.getElementById("body");
     const messageBody = messageInput.value.trim();
 
-    if (!messageBody || !recipientId) return;
+    if (!messageBody) return;
 
     const temp_id = "tmp-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
     // render optimistic message in UI with status "pending"
     // const domItem = renderPendingMessage({ isCurrentUser: true, message: messageBody, temp_id, status: "pending" });
-    const domItem = createMessageElement({ isCurrentUser: true, message: messageBody, tempId: temp_id, status: "pending" });
+    const domItem = createMessageElement({ isCurrentUser: true, senderAvatar: userAvatar, message: messageBody, tempId: temp_id, status: "pending" });
     pending[temp_id] = domItem;
 
     try {
@@ -251,7 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
           temp_id,
           message: messageBody,
           sender_id: userId,
-          recipient_id: recipientId
+          sender_avatar: userAvatar
         })
       );
       messageInput.value = "";

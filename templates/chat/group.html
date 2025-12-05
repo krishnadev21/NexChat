@@ -6,6 +6,9 @@
     class="flex flex-col h-screen bg-[#0B141A]"
     id="chat-container"
     data-group-id="{{group.id}}"
+    data-user-id="{{ request.user.id }}"
+    data-user-name="{{ request.user.username }}"
+    data-user-avatar="{{ request.user.avatar.url }}"
     >
     <!-- Chat header -->
     <div class="p-3 border-b border-[#2F3B43] bg-[#202C33] flex justify-between items-center">
@@ -239,5 +242,5 @@
     </div>
   </div>
 
-  <script src="{% static 'chat/js/group.js' %}"></script>
+  <script src="{% static 'chat/js/group_ws.js' %}"></script>
 {% endblock content %}
