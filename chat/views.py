@@ -21,7 +21,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 
-from .serializers import MessageCreateSerializer
+from .serializers import (
+    MessagesSerializer,
+    GroupMessageSerializer,
+)
 
 from .forms import (
     RoomForm,
@@ -79,7 +82,7 @@ class UserListView(LoginRequiredMixin, View):
 
 class SaveMessageView(APIView):
     def post(self, request):
-        serializer = MessageCreateSerializer(data=request.data)
+        serializer = MessagesSerializer(data=request.data)
         
         if serializer.is_valid():
             try:
@@ -103,7 +106,33 @@ class SaveMessageView(APIView):
                 "error": "Validation failed",
                 "details": serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
+        
+class SaveGroupMessageView(APIView):
+    def post(self, request):
+        serializer = GroupMessageSerializer(data=request.data)
 
+        if serializer.is_valid():
+            try:
+                message = serializer.save()
+                
+                return Response({
+                    "success": True,
+                    "message_id": message.id,
+                    "timestamp": message.timestamp.isoformat(),
+                }, status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                return Response({
+                    "success": False,
+                    "error": f"Failed to create message: {str(e)}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        else:
+            return Response({
+                "success": False,
+                "error": "Validation failed",
+                "details": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class getConversationView(LoginRequiredMixin, View):
     login_url = '/'  # Redirect URL if not authenticated

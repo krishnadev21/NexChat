@@ -9,6 +9,7 @@ from .views import (
     UserListView,
     fetchUserConversationsView,
     getConversationView,
+    SaveGroupMessageView,
     # DeleteMessageView,
     # DeleteConversationView,
     # ConversationsListView,
@@ -30,6 +31,7 @@ urlpatterns = [
     path('groups/', GroupListView.as_view(), name='groups'),
     path('group/<int:pk>', GroupView.as_view(), name='group'),
     path('create-group/', CreateGroupView.as_view(), name='create-group'),
+    path('save-group-message/', SaveGroupMessageView.as_view(), name='save-group-message'),
     # path('delete-group-message/<int:pk>/<int:message_id>', DeleteGroupMessage.as_view(), name='delete-group-message'),
     # path('delete-group/<int:pk>', DeleteGroupView.as_view(), name='delete-group'),
 ]

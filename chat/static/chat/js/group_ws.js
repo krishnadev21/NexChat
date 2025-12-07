@@ -185,6 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tempId = data.temp_id || `rcv-${Date.now()}`;
         createMessageElement({
           isCurrentUser,
+          senderAvatar: data.sender_avatar,
           message: data.message,
           tempId: tempId,
           status: isCurrentUser ? "delivered" : "received"
