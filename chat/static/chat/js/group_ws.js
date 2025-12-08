@@ -10,16 +10,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const groupId = chatData.groupId;
   const userId = chatData.userId;
   const userAvatar = chatData.userAvatar;
-  
-  const tickSymbols = {
-    pending: "⏲",
-    received_by_server: "🗸",  // Use the character directly
-    sent: "🗸",               // alias
-    delivered_to_recipient: "🗸🗸", // Remove space between them
-    delivered: "🗸🗸",        // alias
-    failed: "⚠"
-};
 
+function renderStatus(status) {
+    switch (status) {
+        case "pending": return "⚠";
+        case "sent": return "🗸";
+        case "delivered": return "🗸🗸";
+        case "read": return `<span class='blue'>🗸🗸</span>`;
+        case "failed": return "❌";
+        default: return "";
+    }
+}
 
   // Auto-scroll function
   const scrollToBottom = () => {
@@ -69,6 +70,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000); // stop typing if idle for 1.5s
   });
 
+  function resend(tempId, item) {
+    item.updateStatus("sending");
+
+    chatSocket.send(JSON.stringify({
+        type: "chat",
+        message: item.dom.querySelector("p").textContent,
+        temp_id: tempId,
+        sender_id: userId
+    }));
+}
+
+
   // Create message container
  const createMessageElement = ({isCurrentUser, senderAvatar, message, tempId, status}) => {
     const messageDiv = document.createElement('div');
@@ -78,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
     messageDiv.dataset.status = status;
 
     const timeDisplay = formatTime(Date.now());
-    const statusSymbol = tickSymbols[status] || tickSymbols.pending;
+    const statusSymbol = renderStatus(status) || renderStatus("pending");
     
     messageDiv.innerHTML = `
       <!-- Avatar -->
@@ -108,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateStatus(newStatus) {
         const statusIndicator = messageDiv.querySelector('.status-indicator');
         if (statusIndicator) {
-          statusIndicator.textContent = tickSymbols[newStatus] || newStatus;
+          statusIndicator.textContent = renderStatus(newStatus) || newStatus;
           // Use classList to toggle Tailwind class
           newStatus === 'delivered' ? statusIndicator.classList.add('text-[#34B7F1]') : statusIndicator.classList.remove('text-[#34B7F1]');
         }
@@ -139,95 +152,106 @@ document.addEventListener("DOMContentLoaded", () => {
     };
  };
 
-  chatSocket.onmessage = (e) => {
-    // Parse the received message
+ chatSocket.onmessage = (e) => {
     const data = JSON.parse(e.data);
 
-    if (data.type === "receipt") {
-      const { temp_id, status } = data;
-      const item = pending[temp_id];
-      if (!item) return;
+    switch (data.type) {
 
-      if (status === "received_by_server") {
-        item.updateStatus("sent");
-      } else if (status === "delivered_to_recipient") {
-          item.updateStatus("delivered");
-      } else if (status === "failed") {
-          item.updateStatus("failed");
-          item.showRetryButton(() => resend(temp_id, item));
-      }
+        // -------------------------------------------------------
+        //  MESSAGE RECEIPT / DELIVERY STATUS
+        // -------------------------------------------------------
+        case "receipt": {
+            const { temp_id, status } = data;
+            const item = pending[temp_id];
+            if (!item) return;
 
-      // Remove from pending if final status
-      if (status === "delivered" || status === "failed") {
-        delete pending[temp_id];
-      }
-    }
+            if (status === "received_by_server") {
+                item.updateStatus("sent");
 
-    if (data.type === "system") {
-        const tempId = data.temp_id || `rcv-${Date.now()}`;
+            } else if (status === "delivered_to_recipient") {
+                item.updateStatus("delivered");
 
-        createMessageElement({
-          isCurrentUser: false,
-          senderAvatar: userAvatar,
-          message: data.message,
-          tempId: tempId,
-          status: "delivered"
-        });
-    }
+            } else if (status === "failed") {
+                item.updateStatus("failed");
+                item.showRetryButton(() => resend(temp_id, item));
+            }
 
-    if (data.type === "chat") {
-      // Check if the message was sent by the current user
-      const isCurrentUser = Number(userId) === Number(data.sender_id);
-
-      // Only create message element for messages from others
-      // or for confirmed messages from self
-      if (!isCurrentUser) { // || data.temp_id
-        const tempId = data.temp_id || `rcv-${Date.now()}`;
-        createMessageElement({
-          isCurrentUser,
-          senderAvatar: data.sender_avatar,
-          message: data.message,
-          tempId: tempId,
-          status: isCurrentUser ? "delivered" : "received"
-        });
-      }
-
-      // Optimistic UI update helpers
-      // const tempId = Date.now();
-      // const displayTime = formatTime(tempId);
-
-      // const dom = createMessageElement({isCurrentUser, message: data.message, temp_id: tempId, status: "print"});
-      
-      // Scroll after new message is added
-      scrollToBottom();
-    }
-
-    if (data.type === "typing") {
-      // Ignore if the current user is the one typing
-      if (Number(data.user_id) === Number(userId)) return;
-
-      // const userId = data.user_id;
-      const isTyping = data.is_typing;
-
-      if (typingIndicator) {
-        typingIndicator.style.transition = "opacity 0.2s ease-in-out";
-
-        if (isTyping) {
-          // Fade in "typing..."
-          typingIndicator.textContent = "typing...";
-          typingIndicator.style.opacity = "1";
-        } else {
-          // Fade out → Update → Fade in
-          typingIndicator.style.opacity = "0";
-
-          setTimeout(() => {
-            typingIndicator.textContent = "online";
-            typingIndicator.style.opacity = "1";
-          }, 200);
+            if (status === "delivered" || status === "failed") {
+                delete pending[temp_id];
+            }
+            break;
         }
-      }
+
+        // -------------------------------------------------------
+        //  SYSTEM MESSAGE (BOT / SERVER NOTIFICATION)
+        // -------------------------------------------------------
+        case "system": {
+            const tempId = data.temp_id || `rcv-${Date.now()}`;
+
+            createMessageElement({
+                isCurrentUser: false,
+                senderAvatar: userAvatar,
+                message: data.message,
+                tempId,
+                status: "delivered",
+            });
+            break;
+        }
+
+        // -------------------------------------------------------
+        //  NORMAL CHAT MESSAGE
+        // -------------------------------------------------------
+        case "chat": {
+            const isCurrentUser = Number(userId) === Number(data.sender_id);
+
+            if (!isCurrentUser) {
+                const tempId = data.temp_id || `rcv-${Date.now()}`;
+                createMessageElement({
+                    isCurrentUser,
+                    senderAvatar: data.sender_avatar,
+                    message: data.message,
+                    tempId,
+                    status: "received",
+                });
+            }
+
+            scrollToBottom();
+            break;
+        }
+
+        // -------------------------------------------------------
+        //  TYPING INDICATOR
+        // -------------------------------------------------------
+        case "typing": {
+            if (Number(data.user_id) === Number(userId)) return;
+
+            const isTyping = data.is_typing;
+
+            if (!typingIndicator) break;
+
+            typingIndicator.style.transition = "opacity 0.2s ease-in-out";
+
+            if (isTyping) {
+                typingIndicator.textContent = "typing...";
+                typingIndicator.style.opacity = "1";
+
+            } else {
+                typingIndicator.style.opacity = "0";
+                setTimeout(() => {
+                    typingIndicator.textContent = "online";
+                    typingIndicator.style.opacity = "1";
+                }, 200);
+            }
+            break;
+        }
+
+        // -------------------------------------------------------
+        //  DEFAULT: No match
+        // -------------------------------------------------------
+        default:
+            console.warn("Unknown WebSocket type:", data.type);
     }
-  };
+};
 
    // WebSocket error handling
   chatSocket.onerror = (error) => {
@@ -252,8 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!messageBody) return;
 
     const temp_id = "tmp-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
-    // render optimistic message in UI with status "pending"
-    // const domItem = renderPendingMessage({ isCurrentUser: true, message: messageBody, temp_id, status: "pending" });
+    // Optimistic UI with status "pending"
     const domItem = createMessageElement({ isCurrentUser: true, senderAvatar: userAvatar, message: messageBody, tempId: temp_id, status: "pending" });
     pending[temp_id] = domItem;
 
