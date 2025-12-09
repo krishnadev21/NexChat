@@ -22,68 +22,67 @@ function renderStatus(status) {
     }
 }
 
-  // Auto-scroll function
-  const scrollToBottom = () => {
+// Auto-scroll function
+const scrollToBottom = () => {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  };
+};
 
-  // Initial scroll to bottom when page loads
-  scrollToBottom();
+// Initial scroll to bottom when page loads
+scrollToBottom();
 
-  // Web Socket Connection
-  const chatSocket = new WebSocket(
-    `ws://127.0.0.1:8001/ws/group/${userId}/${groupId}`
-  );
+// Web Socket Connection
+const chatSocket = new WebSocket(
+      `ws://127.0.0.1:8001/ws/group/${userId}/${groupId}`
+);
 
-  // In-memory map for pending messages
-  const pending = {}; // temp_id -> DOM element or data
+// In-memory map for pending messages
+const pending = {}; // temp_id -> DOM element or data
 
-  // Results: "5:45 pm", "11:30 am", "12:15 pm"
-  function formatTime(timestamp) {
+// Results: "5:45 pm", "11:30 am", "12:15 pm"
+function formatTime(timestamp) {
     return new Date(timestamp)
-      .toLocaleTimeString("en-US", {
+    .toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-      })
-      .toLowerCase();
-  }
+    })
+    .toLowerCase();
+}
 
-  let typingTimeout;
+let typingTimeout;
 
-  function sendTypingStatus(isTyping) {
+function sendTypingStatus(isTyping) {
     chatSocket.send(
-      JSON.stringify({
+        JSON.stringify({
         type: "typing",
         is_typing: isTyping,
-      })
+        })
     );
-  }
+}
 
-  // Detect when user is typing
-  messageInput.addEventListener("input", () => {
+// Detect when user is typing
+messageInput.addEventListener("input", () => {
     sendTypingStatus(true);
 
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-      sendTypingStatus(false);
+        sendTypingStatus(false);
     }, 1000); // stop typing if idle for 1.5s
-  });
+});
 
-  function resend(tempId, item) {
+function resend(tempId, item) {
     item.updateStatus("sending");
-
     chatSocket.send(JSON.stringify({
         type: "chat",
         message: item.dom.querySelector("p").textContent,
         temp_id: tempId,
-        sender_id: userId
+        sender_id: userId,
+        is_retry: true // Add flag to identify retry messages
     }));
 }
 
-
-  // Create message container
- const createMessageElement = ({isCurrentUser, senderAvatar, message, tempId, status}) => {
+// Create message container with enhanced retry logic
+const createMessageElement = ({isCurrentUser, senderAvatar, message, tempId, status}) => {
     const messageDiv = document.createElement('div');
     messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
     messageDiv.id = `temp-${tempId}`;
@@ -93,11 +92,31 @@ function renderStatus(status) {
     const timeDisplay = formatTime(Date.now());
     const statusSymbol = renderStatus(status) || renderStatus("pending");
     
+    // Create time and status container
+    const timeStatusContainer = document.createElement('div');
+    timeStatusContainer.className = "flex items-center justify-end gap-2 mt-1";
+    
+    // Time element
+    const timeElement = document.createElement('span');
+    timeElement.className = "text-xs text-[#8696A0]";
+    timeElement.textContent = timeDisplay;
+    
+    // Status indicator (only for current user)
+    let statusElement = null;
+    if (isCurrentUser) {
+        statusElement = document.createElement('span');
+        statusElement.className = "ml-1 font-bold text-md -tracking-[0.2em] status-indicator";
+        statusElement.textContent = statusSymbol;
+        if (status === 'delivered') {
+            statusElement.classList.add('text-[#34B7F1]');
+        }
+    }
+    
     messageDiv.innerHTML = `
       <!-- Avatar -->
       <img
-        src="${senderAvatar}" id="temp-${tempId}"
-        alt="{{ message.sender.username }}"
+        src="${senderAvatar}"
+        alt="User avatar"
         class="w-10 h-10 rounded-full object-cover flex-shrink-0"
         onerror="this.src='/static/images/default-avatar.jpg'"
       />
@@ -106,57 +125,89 @@ function renderStatus(status) {
       <div class="max-w-[65%] rounded-br-[40px] rounded-bl-[40px] px-5 py-2
           ${isCurrentUser ? "rounded-tl-[40px] rounded-tr-[6px] bg-[#005C4B]" : "rounded-tr-[40px] rounded-tl-[6px] bg-[#202C33]"}">
         <p class="text-[#E9EDEF]">${message}</p>
-        <p class="text-xs text-[#8696A0] text-right mt-1">${timeDisplay}
-            ${isCurrentUser ? `<span class="ml-1 font-bold text-md -tracking-[0.2em] status-indicator">${statusSymbol}</span>` : ""}
-        </p>
       </div>
     `;
+    
+    // Append time and status container to message bubble
+    const messageBubble = messageDiv.querySelector('div');
+    messageBubble.appendChild(timeStatusContainer);
+    timeStatusContainer.appendChild(timeElement);
+    
+    if (statusElement) {
+        timeStatusContainer.appendChild(statusElement);
+    }
     
     messagesContainer.appendChild(messageDiv);
     scrollToBottom();
 
-    // Return helper object for later UI updates
-    return {
-      element: messageDiv,
-      updateStatus(newStatus) {
-        const statusIndicator = messageDiv.querySelector('.status-indicator');
-        if (statusIndicator) {
-          statusIndicator.textContent = renderStatus(newStatus) || newStatus;
-          // Use classList to toggle Tailwind class
-          newStatus === 'delivered' ? statusIndicator.classList.add('text-[#34B7F1]') : statusIndicator.classList.remove('text-[#34B7F1]');
+    // Create the helper object
+    const messageObj = {
+        element: messageDiv,
+        dom: messageDiv, // Add dom property for compatibility with resend function
+        updateStatus(newStatus) {
+            const statusIndicator = messageDiv.querySelector('.status-indicator');
+            if (statusIndicator) {
+                statusIndicator.textContent = renderStatus(newStatus) || newStatus;
+                // Update color based on status
+                if (newStatus === 'delivered') {
+                    statusIndicator.classList.add('text-[#34B7F1]');
+                } else {
+                    statusIndicator.classList.remove('text-[#34B7F1]');
+                }
+            }
+            messageDiv.dataset.status = newStatus;
+            
+            // Remove retry button if status is no longer failed
+            if (newStatus !== 'failed') {
+                this.removeRetryButton();
+            }
+        },
+        replaceWithConfirmed({ message_id, timestamp, message }) {
+            messageDiv.dataset.messageId = message_id;
+            messageDiv.querySelector("p").textContent = message;
+            this.updateStatus("delivered");
+        },
+        showRetryButton() {
+            // Don't add multiple retry buttons
+            if (messageDiv.querySelector('.retry-button')) return;
+            
+            const retryBtn = document.createElement("button");
+            retryBtn.className = "retry-button text-xs text-red-400 underline hover:text-red-300 transition-colors";
+            retryBtn.textContent = "Retry";
+            retryBtn.onclick = () => {
+                resend(tempId, messageObj);
+                this.removeRetryButton();
+            };
+            
+            const timeContainer = messageDiv.querySelector('.flex.items-center');
+            if (timeContainer) {
+                timeContainer.appendChild(retryBtn);
+            }
+        },
+        removeRetryButton() {
+            const retryBtn = messageDiv.querySelector('.retry-button');
+            if (retryBtn) {
+                retryBtn.remove();
+            }
+        },
+        getElementText() {
+            return messageDiv.querySelector("p").textContent;
         }
-        messageDiv.dataset.status = newStatus;
-      },
-      replaceWithConfirmed({ message_id, timestamp, message }) {
-        messageDiv.dataset.messageId = message_id;
-        messageDiv.querySelector("p").textContent = message;
-        this.updateStatus("delivered");
-      },
-      showRetryButton() {
-        const retryBtn = document.createElement("button");
-        retryBtn.className = "ml-2 text-xs text-red-400 underline";
-        retryBtn.textContent = "Retry";
-        retryBtn.onclick = () => {
-          const messageText = this.getElementText();
-          // Implement retry logic here
-          console.log("Retry sending:", messageText);
-        };
-        const timeContainer = messageDiv.querySelector('.flex.justify-between');
-        if (timeContainer) {
-          timeContainer.appendChild(retryBtn);
-        }
-      },
-      getElementText() {
-        return messageDiv.querySelector("p").textContent;
-      }
     };
- };
+    
+    // Store in pending messages if it's a current user message with pending status
+    if (isCurrentUser && (status === 'pending' || status === 'sending' || status === 'failed')) {
+        pending[tempId] = messageObj;
+    }
+    
+    return messageObj;
+};
 
- chatSocket.onmessage = (e) => {
+// Enhanced WebSocket message handler with retry support
+chatSocket.onmessage = (e) => {
     const data = JSON.parse(e.data);
 
     switch (data.type) {
-
         // -------------------------------------------------------
         //  MESSAGE RECEIPT / DELIVERY STATUS
         // -------------------------------------------------------
@@ -173,7 +224,15 @@ function renderStatus(status) {
 
             } else if (status === "failed") {
                 item.updateStatus("failed");
-                item.showRetryButton(() => resend(temp_id, item));
+                item.showRetryButton();
+                
+                // Schedule auto-retry after 5 seconds if still failed
+                // setTimeout(() => {
+                //     if (pending[temp_id] && item.element.dataset.status === 'failed') {
+                //         console.log(`Auto-retrying message ${temp_id}`);
+                //         resend(temp_id, item);
+                //     }
+                // }, 5000);
             }
 
             if (status === "delivered" || status === "failed") {
@@ -183,27 +242,12 @@ function renderStatus(status) {
         }
 
         // -------------------------------------------------------
-        //  SYSTEM MESSAGE (BOT / SERVER NOTIFICATION)
-        // -------------------------------------------------------
-        case "system": {
-            const tempId = data.temp_id || `rcv-${Date.now()}`;
-
-            createMessageElement({
-                isCurrentUser: false,
-                senderAvatar: userAvatar,
-                message: data.message,
-                tempId,
-                status: "delivered",
-            });
-            break;
-        }
-
-        // -------------------------------------------------------
-        //  NORMAL CHAT MESSAGE
+        //  NORMAL CHAT MESSAGE (with retry handling)
         // -------------------------------------------------------
         case "chat": {
             const isCurrentUser = Number(userId) === Number(data.sender_id);
 
+            // Handle incoming messages
             if (!isCurrentUser) {
                 const tempId = data.temp_id || `rcv-${Date.now()}`;
                 createMessageElement({
@@ -213,9 +257,47 @@ function renderStatus(status) {
                     tempId,
                     status: "received",
                 });
+                
+                // Send delivery receipt for received messages
+                if (data.temp_id && !data.is_retry) {
+                    chatSocket.send(JSON.stringify({
+                        type: "receipt",
+                        temp_id: data.temp_id,
+                        status: "delivered_to_recipient",
+                        recipient_id: data.sender_id
+                    }));
+                }
+            } 
+            // Handle our own messages (for retry confirmation)
+            else if (data.is_retry && data.temp_id) {
+                const item = pending[data.temp_id];
+                if (item) {
+                    item.updateStatus("sending");
+                    
+                    // Remove the retry button if it exists
+                    item.removeRetryButton();
+                    
+                    // Mark as re-sent
+                    console.log(`Message ${data.temp_id} re-sent`);
+                }
             }
 
             scrollToBottom();
+            break;
+        }
+
+        // -------------------------------------------------------
+        //  SYSTEM MESSAGE (BOT / SERVER NOTIFICATION)
+        // -------------------------------------------------------
+        case "system": {
+            const tempId = data.temp_id || `rcv-${Date.now()}`;
+            createMessageElement({
+                isCurrentUser: false,
+                senderAvatar: userAvatar,
+                message: data.message,
+                tempId,
+                status: "delivered",
+            });
             break;
         }
 
@@ -253,21 +335,38 @@ function renderStatus(status) {
     }
 };
 
-   // WebSocket error handling
-  chatSocket.onerror = (error) => {
-    console.error('WebSocket error:', error);
-    showNotification('Connection error', 'bg-red-500');
-  };
+// Handle WebSocket connection errors and retry logic
+chatSocket.onerror = (error) => {
+    console.error("WebSocket error:", error);
+    
+    // Mark all pending messages as failed
+    Object.keys(pending).forEach(tempId => {
+        const item = pending[tempId];
+        if (item && item.element.dataset.status !== 'delivered') {
+            item.updateStatus("failed");
+            item.showRetryButton();
+        }
+    });
+};
 
-  chatSocket.onclose = (event) => {
-    console.log('WebSocket closed:', event);
-    if (!event.wasClean) {
-      showNotification('Connection lost. Reconnecting...', 'bg-yellow-500');
-    }
-  };
+chatSocket.onclose = (event) => {
+    console.log("WebSocket closed:", event.code, event.reason);
+    
+    // Attempt to reconnect
+    setTimeout(() => {
+        console.log("Attempting to reconnect...");
+        connectWebSocket(); // You'll need to implement this function
+    }, 3000);
+};
 
-  // Past the chatForm function
-  chatForm.addEventListener("submit", async (e) => {
+// Helper function to connect WebSocket
+function connectWebSocket() {
+    // Implement your WebSocket connection logic here
+    //
+}
+
+// Past the chatForm function
+chatForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const messageInput = document.getElementById("body");
@@ -281,16 +380,16 @@ function renderStatus(status) {
     pending[temp_id] = domItem;
 
     try {
-      chatSocket.send(
+        chatSocket.send(
         JSON.stringify({
-          type: "chat",
-          temp_id,
-          message: messageBody,
-          sender_id: userId,
-          sender_avatar: userAvatar
+            type: "chat",
+            temp_id,
+            message: messageBody,
+            sender_id: userId,
+            sender_avatar: userAvatar
         })
-      );
-      messageInput.value = "";
+        );
+        messageInput.value = "";
     } catch (error) {
         console.error("Error sending message:", error);
         domItem.updateStatus("failed");
@@ -301,21 +400,21 @@ function renderStatus(status) {
 
     // Helper function to show notifications
     function showNotification(message, bgColor = "bg-blue-500") {
-      const notification = document.createElement("div");
-      notification.className = `fixed bottom-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300`;
-      notification.textContent = message;
-      document.body.appendChild(notification);
+        const notification = document.createElement("div");
+        notification.className = `fixed bottom-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
 
-      // Auto-remove after 3 seconds
-      setTimeout(() => {
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
         notification.style.opacity = "0";
         setTimeout(() => notification.remove(), 300);
-      }, 3000);
+        }, 3000);
     }
-  });
+    });
 
-  // Focus input when chat is opened
-  if (document.getElementById("body")) {
-      document.getElementById("body").focus();
-  }
+    // Focus input when chat is opened
+    if (document.getElementById("body")) {
+        document.getElementById("body").focus();
+    }
 });
