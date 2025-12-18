@@ -9,6 +9,7 @@
     data-user-id="{{ request.user.id }}"
     data-user-name="{{ request.user.username }}"
     data-user-avatar="{{ request.user.avatar.url }}"
+    data-participant-ids="{{ participant_ids|safe }}"
     >
     <!-- Chat header -->
     <div class="p-3 border-b border-[#2F3B43] bg-[#202C33] flex justify-between items-center">

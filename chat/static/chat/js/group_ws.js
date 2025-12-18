@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const groupId = chatData.groupId;
   const userId = chatData.userId;
   const userAvatar = chatData.userAvatar;
+  const participantIds = JSON.parse(chatData.participantIds).join(",");
 
 function renderStatus(status) {
     switch (status) {
@@ -32,7 +33,7 @@ scrollToBottom();
 
 // Web Socket Connection
 const chatSocket = new WebSocket(
-      `ws://127.0.0.1:8001/ws/group/${userId}/${groupId}`
+      `ws://127.0.0.1:8001/ws/group/${userId}/${groupId}/${participantIds}`
 );
 
 // In-memory map for pending messages
@@ -219,7 +220,7 @@ chatSocket.onmessage = (e) => {
             if (status === "received_by_server") {
                 item.updateStatus("sent");
 
-            } else if (status === "delivered_to_recipient") {
+            } else if (status === "delivered_to_recipients") {
                 item.updateStatus("delivered");
 
             } else if (status === "failed") {

@@ -1,5 +1,6 @@
 from django.views import View
 from django.db.models import Q
+from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -80,6 +81,52 @@ class UserListView(LoginRequiredMixin, View):
 #             "created_at": msg.created_at.isoformat()
 #         })
 
+class UpdateLastSeen(APIView):
+    def post(self, request):
+        """Update user's last_activity field"""
+        try:
+            user_id = request.data.get('user_id')
+            last_seen = request.data.get('last_seen')
+            
+            if not user_id:
+                return Response(
+                    {"error": "user_id is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                user = CustomUser.objects.get(id=user_id)
+            except CustomUser.DoesNotExist:
+                return Response(
+                    {"error": "User not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Update last_activity
+            if last_seen:
+                try:
+                    from datetime import datetime
+                    user.last_activity = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
+                except:
+                    user.last_activity = timezone.now()
+            else:
+                user.last_activity = timezone.now()
+            
+            user.save(update_fields=['last_activity'])
+            
+            return Response({
+                "status": "success",
+                "message": "Last seen updated",
+                "user_id": user_id,
+                "last_seen": user.last_activity.isoformat()
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class SaveMessageView(APIView):
     def post(self, request):
         serializer = MessagesSerializer(data=request.data)
@@ -141,6 +188,8 @@ class getConversationView(LoginRequiredMixin, View):
     def get(self, request, partner_id):
         try:
             conversation = Messages.getConversation(user=request.user, partner_id=partner_id)
+            # print(f'12332143333333333333333331545454545454+ {partner_id}')
+            # print(request.user.id, request.user.username, conversation)
 
         except Exception as e:
             messages.error(request, f"Error loading conversations: {str(e)}")
@@ -272,16 +321,16 @@ class GroupView(LoginRequiredMixin, View):
         try:
             # Get the group with prefetched messages and participants
             group = GroupModel.objects.get(pk=pk)
-            
+            participant_ids = list(group.participants.values_list("id", flat=True))
             messages = group.messages.all().order_by('timestamp')
-            print(f'Messages --> {messages}')
         
         except Exception as e:
             messages.error(request, f"Error loading conversations: {str(e)}")
             
         return render(request, 'chat/group.html', {
             'group': group,
-            'chat_messages': messages
+            'chat_messages': messages,
+            'participant_ids': participant_ids,
         })
     
     def post(self, request, pk):

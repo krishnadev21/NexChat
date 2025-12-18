@@ -9,7 +9,7 @@ from .models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'last_activity']
 
 class MessagesSerializer(serializers.ModelSerializer):
     # Accept user IDs → DRF converts them into user objects

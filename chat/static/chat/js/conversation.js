@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     failed: "⚠"
 };
 
+  fetchLastSeen(recipientId)
 
   // Auto-scroll function
   const scrollToBottom = () => {
@@ -30,6 +31,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initial scroll to bottom when page loads
   scrollToBottom();
 
+  const presenceSocket = new WebSocket(
+    `ws://127.0.0.1:8001/ws/presence/${userId}`
+  );
+
   // Web Socket Connection
   const chatSocket = new WebSocket(
     // `ws://${window.location.host}/ws/socket-server/${recipientId}`
@@ -38,6 +43,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // In-memory map for pending messages
   const pending = {}; // temp_id -> DOM element or data
+
+  async function fetchLastSeen(viewedUserId) {
+    try {
+        const res = await fetch(`http://127.0.0.1:8001/user/${viewedUserId}/last_seen`);
+        const data = await res.json();
+        
+        if (data.status === "online") {
+            typingIndicator.textContent = "online";
+        } else if (data.last_seen) {
+            const date = new Date(data.last_seen);
+            typingIndicator.textContent = "Last seen: " + date.toLocaleString();
+        } else {
+            typingIndicator.textContent = "offline";
+        }
+    } catch (err) {
+        console.error("Failed to fetch last seen", err);
+    }
+  }
+
 
   // Results: "5:45 pm", "11:30 am", "12:15 pm"
   function formatTime(timestamp) {
@@ -140,6 +164,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
  };
+
+  presenceSocket.onmessage = (e) => {
+      const data = JSON.parse(e.data);      
+    
+      if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
+          if (data.status === "online") {
+              typingIndicator.textContent = "online";
+          } else {
+              typingIndicator.textContent =
+                  "Last seen: " + new Date(data.last_seen).toLocaleString();
+          }
+      }
+  };
 
   chatSocket.onmessage = (e) => {
     // Parse the received message
