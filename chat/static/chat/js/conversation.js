@@ -165,18 +165,30 @@ document.addEventListener("DOMContentLoaded", () => {
     };
  };
 
-  presenceSocket.onmessage = (e) => {
-      const data = JSON.parse(e.data);      
+ presenceSocket.onmessage = (e) => {
+  const data = JSON.parse(e.data);      
     
-      if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
-          if (data.status === "online") {
-              typingIndicator.textContent = "online";
-          } else {
-              typingIndicator.textContent =
-                  "Last seen: " + new Date(data.last_seen).toLocaleString();
-          }
-      }
-  };
+  if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
+    if (typingIndicator) {
+      typingIndicator.style.transition = "opacity 0.2s ease-in-out";
+      
+      // First fade out
+      typingIndicator.style.opacity = "0";
+      
+      setTimeout(() => {
+        // Update the content based on status
+        if (data.status === "online") {
+          typingIndicator.textContent = "online";
+        } else {
+          typingIndicator.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
+        }
+        
+        // Then fade back in
+        typingIndicator.style.opacity = "1";
+      }, 200);
+    }
+  }
+};
 
   chatSocket.onmessage = (e) => {
     // Parse the received message
