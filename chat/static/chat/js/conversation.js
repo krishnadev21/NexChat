@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const messagesContainer = document.getElementById("messages-container");
   const messageInput = document.getElementById("body");
   const typingIndicator = document.getElementById(`typing-indicator`);
+  const presenceStatus = document.getElementById(`presence-status`);
 
   // Configuration Data
   const chatData = document.getElementById("chat-container").dataset;
@@ -19,7 +20,30 @@ document.addEventListener("DOMContentLoaded", () => {
     delivered_to_recipient: "🗸🗸", // Remove space between them
     delivered: "🗸🗸",        // alias
     failed: "⚠"
-};
+  };
+
+  //Web Scoket Presence
+  const presenceSocket = new WebSocket(
+    `ws://127.0.0.1:8001/ws/presence/${userId}`
+  );
+
+  async function fetchLastSeen(viewedUserId) {
+    try {
+        const res = await fetch(`http://127.0.0.1:8001/user/${viewedUserId}/last_seen`);
+        const data = await res.json();
+        
+        if (data.status === "online") {
+            presenceStatus.textContent = "online";
+        } else if (data.last_seen) {
+            const date = new Date(data.last_seen);
+            presenceStatus.textContent = "Last seen: " + date.toLocaleString();
+        } else {
+            presenceStatus.textContent = "offline";
+        }
+    } catch (err) {
+        console.error("Failed to fetch last seen", err);
+    }
+  }
 
   fetchLastSeen(recipientId)
 
@@ -31,37 +55,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initial scroll to bottom when page loads
   scrollToBottom();
 
-  const presenceSocket = new WebSocket(
-    `ws://127.0.0.1:8001/ws/presence/${userId}`
-  );
-
   // Web Socket Connection
   const chatSocket = new WebSocket(
-    // `ws://${window.location.host}/ws/socket-server/${recipientId}`
     `ws://127.0.0.1:8001/ws/chat/${userId}/${recipientId}`
   );
 
   // In-memory map for pending messages
   const pending = {}; // temp_id -> DOM element or data
-
-  async function fetchLastSeen(viewedUserId) {
-    try {
-        const res = await fetch(`http://127.0.0.1:8001/user/${viewedUserId}/last_seen`);
-        const data = await res.json();
-        
-        if (data.status === "online") {
-            typingIndicator.textContent = "online";
-        } else if (data.last_seen) {
-            const date = new Date(data.last_seen);
-            typingIndicator.textContent = "Last seen: " + date.toLocaleString();
-        } else {
-            typingIndicator.textContent = "offline";
-        }
-    } catch (err) {
-        console.error("Failed to fetch last seen", err);
-    }
-  }
-
 
   // Results: "5:45 pm", "11:30 am", "12:15 pm"
   function formatTime(timestamp) {
@@ -74,6 +74,30 @@ document.addEventListener("DOMContentLoaded", () => {
       .toLowerCase();
   }
 
+  function createTypingIndicator() {
+    const wrapper = document.createElement("div");
+    wrapper.id = "typing-indicator";
+    wrapper.className = "flex w-full gap-2 mb-3 justify-start";
+
+    wrapper.innerHTML = `
+      <img
+        src="/media/default.jpg"
+        class="w-8 h-8 rounded-full object-cover"
+      />
+
+      <div class="bg-[#202C33] rounded-2xl px-4 py-2 flex items-center gap-1">
+        <span class="text-sm text-[#8696A0] mr-1">typing</span>
+        <span class="flex gap-1">
+          <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+          <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+          <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce"></span>
+        </span>
+      </div>
+    `;
+
+    return wrapper;
+  }
+
   let typingTimeout;
 
   function sendTypingStatus(isTyping) {
@@ -84,6 +108,19 @@ document.addEventListener("DOMContentLoaded", () => {
       })
     );
   }
+
+  function showTypingIndicator() {
+    if (document.getElementById("typing-indicator")) return;
+    
+    const indicator = createTypingIndicator();
+    messagesContainer.appendChild(indicator);
+    scrollToBottom();
+  }
+
+  function hideTypingIndicator() {
+    const indicator = document.getElementById("typing-indicator");
+    if (indicator) indicator.remove();
+  } 
 
   // Detect when user is typing
   messageInput.addEventListener("input", () => {
@@ -169,113 +206,151 @@ document.addEventListener("DOMContentLoaded", () => {
   const data = JSON.parse(e.data);      
     
   if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
-    if (typingIndicator) {
-      typingIndicator.style.transition = "opacity 0.2s ease-in-out";
+    if (presenceStatus) {
+      presenceStatus.style.transition = "opacity 0.2s ease-in-out";
       
       // First fade out
-      typingIndicator.style.opacity = "0";
+      presenceStatus.style.opacity = "0";
       
       setTimeout(() => {
         // Update the content based on status
         if (data.status === "online") {
-          typingIndicator.textContent = "online";
+          presenceStatus.textContent = "online";
         } else {
-          typingIndicator.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
+          presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
         }
         
         // Then fade back in
-        typingIndicator.style.opacity = "1";
+        presenceStatus.style.opacity = "1";
       }, 200);
     }
   }
 };
 
-  chatSocket.onmessage = (e) => {
-    // Parse the received message
-    const data = JSON.parse(e.data);
+    chatSocket.onmessage = (e) => {
+        // Parse the received message
+        const data = JSON.parse(e.data);
 
-    if (data.type === "receipt") {
-      const { temp_id, status } = data;
-      const item = pending[temp_id];
-      if (!item) return;
+        switch(data.type) {
+            // -------------------------------------------------------
+            //  MESSAGE RECEIPT / DELIVERY STATUS
+            // -------------------------------------------------------
+            case "receipt": {
+                const { temp_id, status } = data;
+                const item = pending[temp_id];
+                if (!item) return;
 
-      if (status === "received_by_server") {
-        item.updateStatus("sent");
-      } else if (status === "delivered_to_recipient") {
-          item.updateStatus("delivered");
-      } else if (status === "failed") {
-          item.updateStatus("failed");
-          item.showRetryButton(() => resend(temp_id, item));
-      }
+                if (status === "received_by_server") {
+                    item.updateStatus("sent");
 
-      // Remove from pending if final status
-      if (status === "delivered" || status === "failed") {
-        delete pending[temp_id];
-      }
-    }
+                } else if (status === "delivered_to_recipient") {
+                    item.updateStatus("delivered");
 
-    if (data.type === "system") {
-        const tempId = data.temp_id || `rcv-${Date.now()}`;
-        createMessageElement({
-          isCurrentUser: false,
-          message: data.message,
-          tempId: tempId,
-          status: "delivered"
-        });
-    }
+                } else if (status === "failed") {
+                    item.updateStatus("failed");
+                    item.showRetryButton();
 
-    if (data.type === "chat") {
-      // Check if the message was sent by the current user
-      const isCurrentUser = Number(userId) === Number(data.sender_id);
+                    // Schedule auto-retry after 5 seconds if still failed
+                    // setTimeout(() => {
+                    //     if (pending[temp_id] && item.element.dataset.status === 'failed') {
+                    //         console.log(`Auto-retrying message ${temp_id}`);
+                    //         resend(temp_id, item);
+                    //     }
+                    // }, 5000);
+                }
 
-      // Only create message element for messages from others
-      // or for confirmed messages from self
-      if (!isCurrentUser) { // || data.temp_id
-        const tempId = data.temp_id || `rcv-${Date.now()}`;
-        createMessageElement({
-          isCurrentUser,
-          message: data.message,
-          tempId: tempId,
-          status: isCurrentUser ? "delivered" : "received"
-        });
-      }
+                // Remove from pending if final status
+                if (status === "delivered" || status === "failed") {
+                    delete pending[temp_id];
+                }
+                break;
+            }
 
-      // Optimistic UI update helpers
-      // const tempId = Date.now();
-      // const displayTime = formatTime(tempId);
+            // -------------------------------------------------------
+            //  SYSTEM MESSAGE (BOT / SERVER NOTIFICATION)
+            // -------------------------------------------------------
+            case "system": {
+                const tempId = data.temp_id || `rcv-${Date.now()}`;
+                createMessageElement({
+                    tempId,
+                    isCurrentUser: false,
+                    message: data.message,
+                    status: "delivered"
+                });
+                break;
+            }
 
-      // const dom = createMessageElement({isCurrentUser, message: data.message, temp_id: tempId, status: "print"});
-      
-      // Scroll after new message is added
-      scrollToBottom();
-    }
+            // -------------------------------------------------------
+            //  NORMAL CHAT MESSAGE (with retry handling)
+            // -------------------------------------------------------
+            case "chat": {
+                // Check if the message was sent by the current user
+                const isCurrentUser = Number(userId) === Number(data.sender_id);
 
-    if (data.type === "typing") {
-      // Ignore if the current user is the one typing
-      if (Number(data.user_id) === Number(userId)) return;
+                // Only create message element for messages from others
+                // or for confirmed messages from self
+                if (!isCurrentUser) { // || data.temp_id
+                    const tempId = data.temp_id || `rcv-${Date.now()}`;
 
-      // const userId = data.user_id;
-      const isTyping = data.is_typing;
+                    hideTypingIndicator();
+                    createMessageElement({
+                        tempId,
+                        isCurrentUser,
+                        message: data.message,
+                        status: "received"
+                    });
 
-      if (typingIndicator) {
-        typingIndicator.style.transition = "opacity 0.2s ease-in-out";
+                    // Send delivery receipt for received messages
+                    if (data.temp_id && !data.is_retry) {
+                        chatSocket.send(JSON.stringify({
+                            type: "receipt",
+                            temp_id: data.temp_id,
+                            status: "delivered_to_recipient",
+                            recipient_id: data.sender_id
+                        }));
+                    }
+                }
 
-        if (isTyping) {
-          // Fade in "typing..."
-          typingIndicator.textContent = "typing...";
-          typingIndicator.style.opacity = "1";
-        } else {
-          // Fade out → Update → Fade in
-          typingIndicator.style.opacity = "0";
+                // Handle our own messages (for retry confirmation)
+                else if (data.is_retry && data.temp_id) {
+                    const item = pending[data.temp_id];
+                    if (item) {
+                        item.updateStatus("sending");
+                        
+                        // Remove the retry button if it exists
+                        item.removeRetryButton();
+                        
+                        // Mark as re-sent
+                        console.log(`Message ${data.temp_id} re-sent`);
+                    }
+                }
 
-          setTimeout(() => {
-            typingIndicator.textContent = "online";
-            typingIndicator.style.opacity = "1";
-          }, 200);
+                scrollToBottom();
+                break;
+            }
+
+            // -------------------------------------------------------
+            //  TYPING INDICATOR
+            // -------------------------------------------------------
+            case "typing": {
+                // Ignore if the current user is the one typing
+                if (Number(data.user_id) === Number(userId)) return;
+                    showTypingIndicator();
+
+                    clearTimeout(window.typingTimeout);
+                    window.typingTimeout = setTimeout(() => {
+                    hideTypingIndicator();
+                    }, 1200);
+                break;
+            }
+
+            // -------------------------------------------------------
+            //  DEFAULT: No match
+            // -------------------------------------------------------
+            default:
+                console.warn("Unknown WebSocket type:", data.type);
         }
-      }
-    }
-  };
+    };
 
    // WebSocket error handling
   chatSocket.onerror = (error) => {

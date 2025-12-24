@@ -52,7 +52,7 @@
             <h2 class="font-medium text-[#E9EDEF]">
               {{ conversation.partner.username }}
             </h2>
-            <p id="typing-indicator" class="text-xs text-[#8696A0]">
+            <p id="presence-status" class="text-xs text-[#8696A0]">
               {{ conversation.partner.last_activity }}
             </p>
           </div>
@@ -92,7 +92,7 @@
       {% for message in conversation.messages %}
       <!-- The starting point (flex-start) moves from left → right → to right → left.
           So your first item starts on the right side of the container. -->
-      <div class="flex w-full gap-2 mb-3 {% if message.sender == request.user %}flex-row-reverse{% else %}justify-start{% endif %}">
+        <div class="flex w-full gap-2 mb-3 {% if message.sender == request.user %}flex-row-reverse{% else %}justify-start{% endif %}">
           <!-- Avatar -->
           <img
             src="{{ message.sender.avatar.url|default:'/media/default.jpg' }}"
