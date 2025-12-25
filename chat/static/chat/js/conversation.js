@@ -1,231 +1,294 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // DOM Elements
-  const chatForm = document.getElementById("chat-form");
-  const messagesContainer = document.getElementById("messages-container");
-  const messageInput = document.getElementById("body");
-  const typingIndicator = document.getElementById(`typing-indicator`);
-  const presenceStatus = document.getElementById(`presence-status`);
+    // DOM Elements
+    const chatForm = document.getElementById("chat-form");
+    const messagesContainer = document.getElementById("messages-container");
+    const messageInput = document.getElementById("body");
+    const typingIndicator = document.getElementById(`typing-indicator`);
+    const presenceStatus = document.getElementById(`presence-status`);
 
-  // Configuration Data
-  const chatData = document.getElementById("chat-container").dataset;
-  const userId = chatData.userId;
-  const recipientAvatar = chatData.recipientAvatar;
-  const recipientId = chatData.recipientId;
-  const userAvatar = chatData.userAvatar;
+    // Configuration Data
+    const chatData = document.getElementById("chat-container").dataset;
+    const userId = chatData.userId;
+    const recipientAvatar = chatData.recipientAvatar;
+    const recipientId = chatData.recipientId;
+    const userAvatar = chatData.userAvatar;
 
-  const tickSymbols = {
-    pending: "⏲",
-    received_by_server: "🗸",  // Use the character directly
-    sent: "🗸",               // alias
-    delivered_to_recipient: "🗸🗸", // Remove space between them
-    delivered: "🗸🗸",        // alias
-    failed: "⚠"
-  };
-
-  //Web Scoket Presence
-  const presenceSocket = new WebSocket(
-    `ws://127.0.0.1:8001/ws/presence/${userId}`
-  );
-
-  async function fetchLastSeen(viewedUserId) {
-    try {
-        const res = await fetch(`http://127.0.0.1:8001/user/${viewedUserId}/last_seen`);
-        const data = await res.json();
-        
-        if (data.status === "online") {
-            presenceStatus.textContent = "online";
-        } else if (data.last_seen) {
-            const date = new Date(data.last_seen);
-            presenceStatus.textContent = "Last seen: " + date.toLocaleString();
-        } else {
-            presenceStatus.textContent = "offline";
-        }
-    } catch (err) {
-        console.error("Failed to fetch last seen", err);
-    }
-  }
-
-  fetchLastSeen(recipientId)
-
-  // Auto-scroll function
-  const scrollToBottom = () => {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  };
-
-  // Initial scroll to bottom when page loads
-  scrollToBottom();
-
-  // Web Socket Connection
-  const chatSocket = new WebSocket(
-    `ws://127.0.0.1:8001/ws/chat/${userId}/${recipientId}`
-  );
-
-  // In-memory map for pending messages
-  const pending = {}; // temp_id -> DOM element or data
-
-  // Results: "5:45 pm", "11:30 am", "12:15 pm"
-  function formatTime(timestamp) {
-    return new Date(timestamp)
-      .toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      })
-      .toLowerCase();
-  }
-
-  function createTypingIndicator() {
-    const wrapper = document.createElement("div");
-    wrapper.id = "typing-indicator";
-    wrapper.className = "flex w-full gap-2 mb-3 justify-start";
-
-    wrapper.innerHTML = `
-      <img
-        src="/media/default.jpg"
-        class="w-8 h-8 rounded-full object-cover"
-      />
-
-      <div class="bg-[#202C33] rounded-2xl px-4 py-2 flex items-center gap-1">
-        <span class="text-sm text-[#8696A0] mr-1">typing</span>
-        <span class="flex gap-1">
-          <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-          <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-          <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce"></span>
-        </span>
-      </div>
-    `;
-
-    return wrapper;
-  }
-
-  let typingTimeout;
-
-  function sendTypingStatus(isTyping) {
-    chatSocket.send(
-      JSON.stringify({
-        type: "typing",
-        is_typing: isTyping,
-      })
-    );
-  }
-
-  function showTypingIndicator() {
-    if (document.getElementById("typing-indicator")) return;
-    
-    const indicator = createTypingIndicator();
-    messagesContainer.appendChild(indicator);
-    scrollToBottom();
-  }
-
-  function hideTypingIndicator() {
-    const indicator = document.getElementById("typing-indicator");
-    if (indicator) indicator.remove();
-  } 
-
-  // Detect when user is typing
-  messageInput.addEventListener("input", () => {
-    sendTypingStatus(true);
-
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-      sendTypingStatus(false);
-    }, 1000); // stop typing if idle for 1.5s
-  });
-
-  // Create message container
- const createMessageElement = ({isCurrentUser, message, tempId, status}) => {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
-    messageDiv.id = `temp-${tempId}`;
-    messageDiv.dataset.tempId = tempId;
-    messageDiv.dataset.status = status;
-
-    const timeDisplay = formatTime(Date.now());
-    const statusSymbol = tickSymbols[status] || tickSymbols.pending;
-    
-    messageDiv.innerHTML = `
-      <!-- Avatar -->
-      <img
-        src="${isCurrentUser ? userAvatar : recipientAvatar}" id="temp-${tempId}"
-        alt="{{ message.sender.username }}"
-        class="w-10 h-10 rounded-full object-cover flex-shrink-0"
-        onerror="this.src='/static/images/default-avatar.jpg'"
-      />
-
-      <!-- Message Bubble -->  
-      <div class="max-w-[65%] rounded-br-[40px] rounded-bl-[40px] px-5 py-2
-          ${isCurrentUser ? "rounded-tl-[40px] rounded-tr-[6px] bg-[#005C4B]" : "rounded-tr-[40px] rounded-tl-[6px] bg-[#202C33]"}">
-        <p class="text-[#E9EDEF]">${message}</p>
-        <p class="text-xs text-[#8696A0] text-right mt-1">${timeDisplay}
-            ${isCurrentUser ? `<span class="ml-1 font-bold text-md -tracking-[0.2em] status-indicator">${statusSymbol}</span>` : ""}
-        </p>
-      </div>
-    `;
-    
-    messagesContainer.appendChild(messageDiv);
-    scrollToBottom();
-
-    // Return helper object for later UI updates
-    return {
-      element: messageDiv,
-      updateStatus(newStatus) {
-        const statusIndicator = messageDiv.querySelector('.status-indicator');
-        if (statusIndicator) {
-          statusIndicator.textContent = tickSymbols[newStatus] || newStatus;
-          // Use classList to toggle Tailwind class
-          newStatus === 'delivered' ? statusIndicator.classList.add('text-[#34B7F1]') : statusIndicator.classList.remove('text-[#34B7F1]');
-        }
-        messageDiv.dataset.status = newStatus;
-      },
-      replaceWithConfirmed({ message_id, timestamp, message }) {
-        messageDiv.dataset.messageId = message_id;
-        messageDiv.querySelector("p").textContent = message;
-        this.updateStatus("delivered");
-      },
-      showRetryButton() {
-        const retryBtn = document.createElement("button");
-        retryBtn.className = "ml-2 text-xs text-red-400 underline";
-        retryBtn.textContent = "Retry";
-        retryBtn.onclick = () => {
-          const messageText = this.getElementText();
-          // Implement retry logic here
-          console.log("Retry sending:", messageText);
-        };
-        const timeContainer = messageDiv.querySelector('.flex.justify-between');
-        if (timeContainer) {
-          timeContainer.appendChild(retryBtn);
-        }
-      },
-      getElementText() {
-        return messageDiv.querySelector("p").textContent;
-      }
+    const tickSymbols = {
+        pending: "⏲",
+        received_by_server: "🗸",  // Use the character directly
+        sent: "🗸",               // alias
+        delivered_to_recipient: "🗸🗸", // Remove space between them
+        delivered: "🗸🗸",        // alias
+        failed: "⚠"
     };
- };
 
- presenceSocket.onmessage = (e) => {
-  const data = JSON.parse(e.data);      
-    
-  if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
-    if (presenceStatus) {
-      presenceStatus.style.transition = "opacity 0.2s ease-in-out";
-      
-      // First fade out
-      presenceStatus.style.opacity = "0";
-      
-      setTimeout(() => {
-        // Update the content based on status
-        if (data.status === "online") {
-          presenceStatus.textContent = "online";
-        } else {
-          presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
+    function renderStatus(status) {
+        switch (status) {
+            case "pending": return "⚠";
+            case "sent": return "🗸";
+            case "delivered": return "🗸🗸";
+            case "read": return `<span class='blue'>🗸🗸</span>`;
+            case "failed": return "❌";
+            default: return "";
+        }
+    }   
+
+    //Web Scoket Presence
+    const presenceSocket = new WebSocket(
+        `ws://127.0.0.1:8001/ws/presence/${userId}`
+    );
+
+    async function fetchLastSeen(viewedUserId) {
+        try {
+            const res = await fetch(`http://127.0.0.1:8001/user/${viewedUserId}/last_seen`);
+            const data = await res.json();
+            
+            if (data.status === "online") {
+                presenceStatus.textContent = "online";
+            } else if (data.last_seen) {
+                const date = new Date(data.last_seen);
+                presenceStatus.textContent = "Last seen: " + date.toLocaleString();
+            } else {
+                presenceStatus.textContent = "offline";
+            }
+        } catch (err) {
+            console.error("Failed to fetch last seen", err);
+        }
+    }
+
+    fetchLastSeen(recipientId)
+
+    // Auto-scroll function
+    const scrollToBottom = () => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    // Initial scroll to bottom when page loads
+    scrollToBottom();
+
+    // Web Socket Connection
+    const chatSocket = new WebSocket(
+        `ws://127.0.0.1:8001/ws/chat/${userId}/${recipientId}`
+    );
+
+    // In-memory map for pending messages
+    const pending = {}; // temp_id -> DOM element or data
+
+    // Results: "5:45 pm", "11:30 am", "12:15 pm"
+    function formatTime(timestamp) {
+        return new Date(timestamp)
+        .toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        })
+        .toLowerCase();
+    }
+
+    function createTypingIndicator() {
+        const wrapper = document.createElement("div");
+        wrapper.id = "typing-indicator";
+        wrapper.className = "flex w-full gap-2 mb-3 justify-start";
+
+        wrapper.innerHTML = `
+        <img
+            src="/media/default.jpg"
+            class="w-8 h-8 rounded-full object-cover"
+        />
+
+        <div class="bg-[#202C33] rounded-2xl px-4 py-2 flex items-center gap-1">
+            <span class="text-sm text-[#8696A0] mr-1">typing</span>
+            <span class="flex gap-1">
+            <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+            <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+            <span class="w-1.5 h-1.5 bg-[#8696A0] rounded-full animate-bounce"></span>
+            </span>
+        </div>
+        `;
+
+        return wrapper;
+    }
+
+    let typingTimeout;
+
+    function sendTypingStatus(isTyping) {
+        chatSocket.send(
+        JSON.stringify({
+            type: "typing",
+            is_typing: isTyping,
+        })
+        );
+    }
+
+    function showTypingIndicator() {
+        if (document.getElementById("typing-indicator")) return;
+        
+        const indicator = createTypingIndicator();
+        messagesContainer.appendChild(indicator);
+        scrollToBottom();
+    }
+
+    function hideTypingIndicator() {
+        const indicator = document.getElementById("typing-indicator");
+        if (indicator) indicator.remove();
+    } 
+
+    // Detect when user is typing
+    messageInput.addEventListener("input", () => {
+        sendTypingStatus(true);
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+        sendTypingStatus(false);
+        }, 1000); // stop typing if idle for 1.5s
+    });
+
+    // Create message container
+    const createMessageElement = ({isCurrentUser, senderAvatar = null, message, tempId, status}) => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
+        messageDiv.id = `temp-${tempId}`;
+        messageDiv.dataset.tempId = tempId;
+        messageDiv.dataset.status = status;
+
+        const timeDisplay = formatTime(Date.now());
+        const statusSymbol = tickSymbols[status] || renderStatus("pending");
+
+        // Create time and status container
+        const timeStatusContainer = document.createElement('div');
+        timeStatusContainer.className = "flex items-center justify-end gap-2 mt-1";
+
+        // Time element
+        const timeElement = document.createElement('span');
+        timeElement.className = "text-xs text-[#8696A0]";
+        timeElement.textContent = timeDisplay;
+
+        // Status indicator (only for current user)
+        let statusElement = null;
+        if (isCurrentUser) {
+            statusElement = document.createElement('span');
+            statusElement.className = "ml-1 font-bold text-md -tracking-[0.2em] status-indicator";
+            statusElement.textContent = statusSymbol;
+            if (status === 'delivered') {
+                statusElement.classList.add('text-[#34B7F1]');
+            }
+        }
+
+        messageDiv.innerHTML = `
+        <!-- Avatar -->
+        <img
+            src="${senderAvatar}"
+            // alt="{{ message.sender.username }}"
+            class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            
+        />
+
+        <!-- Message Bubble -->  
+        <div class="max-w-[65%] rounded-br-[40px] rounded-bl-[40px] px-5 py-2
+            ${isCurrentUser ? "rounded-tl-[40px] rounded-tr-[6px] bg-[#005C4B]" : "rounded-tr-[40px] rounded-tl-[6px] bg-[#202C33]"}">
+            <p class="text-[#E9EDEF]">${message}</p>
+        </div>
+        `;
+
+        // Append time and status container to message bubble
+        const messageBubble = messageDiv.querySelector('div');
+        messageBubble.appendChild(timeStatusContainer);
+        timeStatusContainer.appendChild(timeElement);
+        
+        if (statusElement) {
+            timeStatusContainer.appendChild(statusElement);
         }
         
-        // Then fade back in
-        presenceStatus.style.opacity = "1";
-      }, 200);
+        messagesContainer.appendChild(messageDiv);
+        scrollToBottom();
+
+        // Create the helper object
+        const messageObj = {
+            element: messageDiv,
+            dom: messageDiv, // Add dom property for compatibility with resend function
+            updateStatus(newStatus) {
+                const statusIndicator = messageDiv.querySelector('.status-indicator');
+                if (statusIndicator) {
+                    statusIndicator.textContent = renderStatus(newStatus) || newStatus;
+                    // Update color based on status
+                    if (newStatus === 'delivered') {
+                        statusIndicator.classList.add('text-[#34B7F1]');
+                    } else {
+                        statusIndicator.classList.remove('text-[#34B7F1]');
+                    }
+                }
+                messageDiv.dataset.status = newStatus;
+                
+                // Remove retry button if status is no longer failed
+                if (newStatus !== 'failed') {
+                    this.removeRetryButton();
+                }
+            },
+            replaceWithConfirmed({ message_id, timestamp, message }) {
+                messageDiv.dataset.messageId = message_id;
+                messageDiv.querySelector("p").textContent = message;
+                this.updateStatus("delivered");
+            },
+            showRetryButton() {
+                // Don't add multiple retry buttons
+                if (messageDiv.querySelector('.retry-button')) return;
+                
+                const retryBtn = document.createElement("button");
+                retryBtn.className = "retry-button text-xs text-red-400 underline hover:text-red-300 transition-colors";
+                retryBtn.textContent = "Retry";
+                retryBtn.onclick = () => {
+                    resend(tempId, messageObj);
+                    this.removeRetryButton();
+                };
+                
+                const timeContainer = messageDiv.querySelector('.flex.items-center');
+                if (timeContainer) {
+                    timeContainer.appendChild(retryBtn);
+                }
+            },
+            removeRetryButton() {
+                const retryBtn = messageDiv.querySelector('.retry-button');
+                if (retryBtn) {
+                    retryBtn.remove();
+                }
+            },
+            getElementText() {
+                return messageDiv.querySelector("p").textContent;
+            }
+        };   
+        
+        // Store in pending messages if it's a current user message with pending status
+        if (isCurrentUser && (status === 'pending' || status === 'sending' || status === 'failed')) {
+            pending[tempId] = messageObj;
+        }
+        
+        return messageObj;
+    };
+
+    presenceSocket.onmessage = (e) => {
+    const data = JSON.parse(e.data);      
+        
+    if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
+        if (presenceStatus) {
+        presenceStatus.style.transition = "opacity 0.2s ease-in-out";
+        
+        // First fade out
+        presenceStatus.style.opacity = "0";
+        
+        setTimeout(() => {
+            // Update the content based on status
+            if (data.status === "online") {
+            presenceStatus.textContent = "online";
+            } else {
+            presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
+            }
+            
+            // Then fade back in
+            presenceStatus.style.opacity = "1";
+        }, 200);
+        }
     }
-  }
-};
+    };
 
     chatSocket.onmessage = (e) => {
         // Parse the received message
@@ -273,9 +336,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const tempId = data.temp_id || `rcv-${Date.now()}`;
                 createMessageElement({
                     tempId,
+                    status: "delivered",
                     isCurrentUser: false,
                     message: data.message,
-                    status: "delivered"
+                    senderAvatar: userAvatar,
                 });
                 break;
             }
@@ -352,18 +416,35 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-   // WebSocket error handling
-  chatSocket.onerror = (error) => {
-    console.error('WebSocket error:', error);
-    showNotification('Connection error', 'bg-red-500');
-  };
+  // Handle WebSocket connection errors and retry logic
+    chatSocket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        
+        // Mark all pending messages as failed
+        Object.keys(pending).forEach(tempId => {
+            const item = pending[tempId];
+            if (item && item.element.dataset.status !== 'delivered') {
+                item.updateStatus("failed");
+                item.showRetryButton();
+            }
+        });
+    };
 
   chatSocket.onclose = (event) => {
-    console.log('WebSocket closed:', event);
-    if (!event.wasClean) {
-      showNotification('Connection lost. Reconnecting...', 'bg-yellow-500');
-    }
-  };
+        console.log("WebSocket closed:", event.code, event.reason);
+        
+        // Attempt to reconnect
+        setTimeout(() => {
+            console.log("Attempting to reconnect...");
+            connectWebSocket(); // You'll need to implement this function
+        }, 3000);
+    };
+
+  // Helper function to connect WebSocket
+  function connectWebSocket() {
+      // Implement your WebSocket connection logic here
+      //
+  }
 
   // Past the chatForm function
   chatForm.addEventListener("submit", async (e) => {
@@ -383,11 +464,12 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       chatSocket.send(
         JSON.stringify({
-          type: "chat",
-          temp_id,
-          message: messageBody,
-          sender_id: userId,
-          recipient_id: recipientId
+            temp_id,
+            type: "chat",
+            sender_id: userId,
+            sender_avatar: userAvatar,
+            message: messageBody,
+            recipient_id: recipientId
         })
       );
       messageInput.value = "";

@@ -332,10 +332,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const tempId = data.temp_id || `rcv-${Date.now()}`;
                 createMessageElement({
                     tempId,
-                    isCurrentUser: false,
-                    senderAvatar: userAvatar,
-                    message: data.message,
                     status: "delivered",
+                    isCurrentUser: false,
+                    message: data.message,
+                    senderAvatar: userAvatar,
                 });
                 break;
             }
@@ -435,8 +435,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Auto-remove after 3 seconds
             setTimeout(() => {
-            notification.style.opacity = "0";
-            setTimeout(() => notification.remove(), 300);
+                notification.style.opacity = "0";
+                setTimeout(() => notification.remove(), 300);
             }, 3000);
         }
     });
