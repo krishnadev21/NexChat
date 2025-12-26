@@ -13,15 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const recipientId = chatData.recipientId;
     const userAvatar = chatData.userAvatar;
 
-    const tickSymbols = {
-        pending: "⏲",
-        received_by_server: "🗸",  // Use the character directly
-        sent: "🗸",               // alias
-        delivered_to_recipient: "🗸🗸", // Remove space between them
-        delivered: "🗸🗸",        // alias
-        failed: "⚠"
-    };
-
     function renderStatus(status) {
         switch (status) {
             case "pending": return "⚠";
@@ -144,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Create message container
-    const createMessageElement = ({isCurrentUser, senderAvatar = null, message, tempId, status}) => {
+    const createMessageElement = ({isCurrentUser, senderAvatar, message, tempId, status}) => {
         const messageDiv = document.createElement('div');
         messageDiv.className = `flex gap-2 mb-3 ${isCurrentUser ? "flex-row-reverse" : "justify-start"} ${status}`;
         messageDiv.id = `temp-${tempId}`;
@@ -152,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.dataset.status = status;
 
         const timeDisplay = formatTime(Date.now());
-        const statusSymbol = tickSymbols[status] || renderStatus("pending");
+        const statusSymbol = renderStatus(status) || renderStatus("pending");
 
         // Create time and status container
         const timeStatusContainer = document.createElement('div');
@@ -178,9 +169,9 @@ document.addEventListener("DOMContentLoaded", () => {
         <!-- Avatar -->
         <img
             src="${senderAvatar}"
-            // alt="{{ message.sender.username }}"
+            alt="User avatar"
             class="w-10 h-10 rounded-full object-cover flex-shrink-0"
-            
+            onerror="this.src='/static/images/default-avatar.jpg'"
         />
 
         <!-- Message Bubble -->  
@@ -360,8 +351,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     createMessageElement({
                         tempId,
                         isCurrentUser,
+                        status: "received",
                         message: data.message,
-                        status: "received"
+                        senderAvatar: userAvatar,
                     });
 
                     // Send delivery receipt for received messages
@@ -458,7 +450,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const temp_id = "tmp-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
     // render optimistic message in UI with status "pending"
     // const domItem = renderPendingMessage({ isCurrentUser: true, message: messageBody, temp_id, status: "pending" });
-    const domItem = createMessageElement({ isCurrentUser: true, message: messageBody, tempId: temp_id, status: "pending" });
+    const domItem = createMessageElement({ isCurrentUser: true, senderAvatar: userAvatar, message: messageBody, tempId: temp_id, status: "pending" });
     pending[temp_id] = domItem;
 
     try {

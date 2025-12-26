@@ -77,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let typingTimeout;
 
     function sendTypingStatus(isTyping) {
+        console.log('sending typing status');
         chatSocket.send(
             JSON.stringify({
                 type: "typing",
@@ -100,6 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Detect when user is typing
     messageInput.addEventListener("input", () => {
+        console.log('typing...');
         sendTypingStatus(true);
 
         clearTimeout(typingTimeout);
@@ -345,7 +347,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // -------------------------------------------------------
             case "typing": {
                 if (Number(data.user_id) === Number(userId)) return;
-
+                console.log('............................................');
                 showTypingIndicator();
 
                     clearTimeout(window.typingTimeout);
