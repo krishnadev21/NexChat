@@ -1,3 +1,5 @@
+import { initPresenceSocket, getPresenceSocket } from "./presence.js";
+
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const chatForm = document.getElementById("chat-form");
@@ -13,21 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const recipientId = chatData.recipientId;
     const userAvatar = chatData.userAvatar;
 
-    function renderStatus(status) {
-        switch (status) {
-            case "pending": return "⚠";
-            case "sent": return "🗸";
-            case "delivered": return "🗸🗸";
-            case "read": return `<span class='blue'>🗸🗸</span>`;
-            case "failed": return "❌";
-            default: return "";
-        }
-    }   
 
-    //Web Scoket Presence
-    const presenceSocket = new WebSocket(
-        `ws://127.0.0.1:8001/ws/presence/${userId}`
-    );
+    // Initialize once
+    const presenceSocket = initPresenceSocket(userId);
 
     async function fetchLastSeen(viewedUserId) {
         try {
@@ -48,6 +38,62 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     fetchLastSeen(recipientId)
+
+    // Set up message handler AFTER socket is created
+    if (presenceSocket) {
+    presenceSocket.onmessage = (e) => {
+        try {
+        const data = JSON.parse(e.data);      
+        
+        // Debug: log incoming messages
+        console.log("Presence update received:", data);
+        
+        if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
+            if (presenceStatus) {
+            presenceStatus.style.transition = "opacity 0.2s ease-in-out";
+            
+            // First fade out
+            presenceStatus.style.opacity = "0";
+            
+            setTimeout(() => {
+                // Update the content based on status
+                if (data.status === "online") {
+                presenceStatus.textContent = "online";
+                } else {
+                presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
+                }
+                
+                // Then fade back in
+                presenceStatus.style.opacity = "1";
+            }, 200);
+            }
+        }
+        } catch (parseError) {
+        console.error("Error parsing WebSocket message:", parseError);
+        }
+    };
+    
+    // Also handle when socket is ready
+    presenceSocket.onopen = () => {
+        console.log("Ready to receive presence updates");
+    };
+    }
+
+    function renderStatus(status) {
+        switch (status) {
+            case "pending": return "⚠";
+            case "sent": return "🗸";
+            case "delivered": return "🗸🗸";
+            case "read": return `<span class='blue'>🗸🗸</span>`;
+            case "failed": return "❌";
+            default: return "";
+        }
+    }   
+
+    // //Web Scoket Presence
+    // const presenceSocket = new WebSocket(
+    //     `ws://127.0.0.1:8001/ws/presence/${userId}`
+    // );
 
     // Auto-scroll function
     const scrollToBottom = () => {
@@ -256,30 +302,30 @@ document.addEventListener("DOMContentLoaded", () => {
         return messageObj;
     };
 
-    presenceSocket.onmessage = (e) => {
-    const data = JSON.parse(e.data);      
+    // presenceSocket.onmessage = (e) => {
+    // const data = JSON.parse(e.data);      
         
-    if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
-        if (presenceStatus) {
-        presenceStatus.style.transition = "opacity 0.2s ease-in-out";
+    // if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
+    //     if (presenceStatus) {
+    //     presenceStatus.style.transition = "opacity 0.2s ease-in-out";
         
-        // First fade out
-        presenceStatus.style.opacity = "0";
+    //     // First fade out
+    //     presenceStatus.style.opacity = "0";
         
-        setTimeout(() => {
-            // Update the content based on status
-            if (data.status === "online") {
-            presenceStatus.textContent = "online";
-            } else {
-            presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
-            }
+    //     setTimeout(() => {
+    //         // Update the content based on status
+    //         if (data.status === "online") {
+    //         presenceStatus.textContent = "online";
+    //         } else {
+    //         presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
+    //         }
             
-            // Then fade back in
-            presenceStatus.style.opacity = "1";
-        }, 200);
-        }
-    }
-    };
+    //         // Then fade back in
+    //         presenceStatus.style.opacity = "1";
+    //     }, 200);
+    //     }
+    // }
+    // };
 
     chatSocket.onmessage = (e) => {
         // Parse the received message
