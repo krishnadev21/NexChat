@@ -1,7 +1,85 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const userSearch = document.getElementById('user-search');
-    const userItems = document.querySelectorAll('.user-item');
-    const notFoundMessage = document.getElementById('not-found-message');
+import { initPresenceSocket, getPresenceSocket } from "./presence.js";
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const userSearch = document.getElementById("user-search");
+    const userItems = document.querySelectorAll(".user-item");
+    const notFoundMessage = document.getElementById("not-found-message");
+
+    // 🔹 Logged-in user
+    const chatData = document.getElementById("conversations-list-container").dataset;
+    const userId = chatData.userId;
+
+    // 🔹 All conversation partner IDs
+    const userIds = Array.from(document.querySelectorAll(".user-item"))
+        .map(item => String(item.dataset.userId))
+        .filter(Boolean);
+
+    // 🔌 Init presence socket ONCE
+    initPresenceSocket(userId);
+
+    // 📡 Fetch initial presence snapshot
+    async function fetchUsersPresence(userIds) {
+        const res = await fetch("http://127.0.0.1:8001/users/presence", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_ids: userIds })
+        });
+
+        const data = await res.json();
+        console.log("Initial presence:", data);
+        return data;
+    }
+
+    // ✅ IMPORTANT: await here
+    const presenceMap = await fetchUsersPresence(userIds);
+
+    // 🎯 Apply initial presence UI
+    userIds.forEach(id => {
+        const info = presenceMap[String(id)];
+        
+        if (!info) return;
+
+        const row = document.querySelector(`[data-user-id="${id}"]`);
+
+        if (!row) return;
+
+        const badge = row.querySelector(".presence-dot");
+        
+        if (!badge) return;
+
+        if (info.status === "online") {
+            badge.classList.remove("bg-gray-400");
+            badge.classList.add("bg-green-500");
+        } else {
+            badge.classList.remove("bg-green-500");
+            badge.classList.add("bg-gray-400");
+        }
+    });
+
+    const socket = getPresenceSocket();
+
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log(data);
+        
+
+        if (data.type !== "presence") return;
+
+        const dot = document.querySelector(
+            `.presence-dot[data-user-id="${data.user_id}"]`
+        );
+
+        if (!dot) return;
+
+        if (data.status === "online") {
+            dot.classList.remove("bg-gray-500");
+            dot.classList.add("bg-green-500");
+        } else {
+            dot.classList.remove("bg-green-500");
+            dot.classList.add("bg-gray-500");
+        }
+    };
+
     
     // Initially hide the not found message
     notFoundMessage.style.display = 'none';
