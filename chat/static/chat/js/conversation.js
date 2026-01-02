@@ -1,6 +1,6 @@
 import { initPresenceSocket, getPresenceSocket } from "./presence.js";
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     // DOM Elements
     const chatForm = document.getElementById("chat-form");
     const messagesContainer = document.getElementById("messages-container");
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // Initialize once
-    const presenceSocket = initPresenceSocket(userId);
+    
 
     async function fetchLastSeen(viewedUserId) {
         try {
@@ -37,11 +37,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    fetchLastSeen(recipientId)
+    await fetchLastSeen(recipientId)
+
+    const socket = getPresenceSocket();
 
     // Set up message handler AFTER socket is created
-    if (presenceSocket) {
-    presenceSocket.onmessage = (e) => {
+    if (socket) {
+    socket.onmessage = (e) => {
         try {
         const data = JSON.parse(e.data);      
         
@@ -74,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     // Also handle when socket is ready
-    presenceSocket.onopen = () => {
+    socket.onopen = () => {
         console.log("Ready to receive presence updates");
     };
     }
