@@ -1,4 +1,4 @@
-import { initPresenceSocket, getPresenceSocket } from "./presence.js";
+import { initPresenceSocket, onPresenceUpdate } from "./presence.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
     const userSearch = document.getElementById("user-search");
@@ -56,30 +56,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    const socket = getPresenceSocket();
-
-    socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log(data);
-        
-
+    onPresenceUpdate((data) => {
         if (data.type !== "presence") return;
 
         const dot = document.querySelector(
             `.presence-dot[data-user-id="${data.user_id}"]`
         );
-
         if (!dot) return;
 
-        if (data.status === "online") {
-            dot.classList.remove("bg-gray-500");
-            dot.classList.add("bg-green-500");
-        } else {
-            dot.classList.remove("bg-green-500");
-            dot.classList.add("bg-gray-500");
-        }
-    };
-
+        dot.classList.toggle("bg-green-500", data.status === "online");
+        dot.classList.toggle("bg-gray-400", data.status !== "online");
+    });
     
     // Initially hide the not found message
     notFoundMessage.style.display = 'none';

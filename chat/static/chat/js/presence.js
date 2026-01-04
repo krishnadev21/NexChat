@@ -1,38 +1,48 @@
 let presenceSocket = null;
+const listeners = new Set();
 
 export function initPresenceSocket(userId) {
-    try {
-        // Close existing socket if any
-        if (presenceSocket) {
-            presenceSocket.close();
+    if (presenceSocket) return presenceSocket;
+
+    presenceSocket = new WebSocket(
+        `ws://127.0.0.1:8001/ws/presence/${userId}`
+    );
+
+    presenceSocket.onopen = () => {
+        console.log("Presence WebSocket connected");
+    };
+
+    presenceSocket.onerror = (error) => {
+        console.error("Presence WebSocket error:", error);
+    };
+
+    presenceSocket.onclose = () => {
+        console.log("Presence WebSocket closed");
+        presenceSocket = null;
+    };
+
+    // ✅ CENTRAL DISPATCHER
+    presenceSocket.onmessage = (event) => {
+        let data;
+        try {
+            data = JSON.parse(event.data);
+        } catch {
+            return;
         }
+
+        console.log(listeners);
         
-        presenceSocket = new WebSocket(
-            `ws://127.0.0.1:8001/ws/presence/${userId}`
-        );
-        
-        // Set up basic event handlers
-        presenceSocket.onopen = () => {
-            console.log("Presence WebSocket connected");
-        };
-        
-        presenceSocket.onerror = (error) => {
-            console.error("WebSocket error:", error);
-        };
-        
-        presenceSocket.onclose = () => {
-            console.log("WebSocket connection closed");
-        };
-        
-    } catch (error) {
-            console.error("Failed to create WebSocket:", error);
-        return null;
-    }
-    
+        listeners.forEach(cb => cb(data));
+    };
+
     return presenceSocket;
 }
 
-// Export socket for use elsewhere
-export function getPresenceSocket() {
-     return presenceSocket;
+// ✅ Subscribe safely
+export function onPresenceUpdate(callback) {
+    listeners.add(callback);
+    console.log(listeners);
+
+    // Optional cleanup
+    return () => listeners.delete(callback);
 }

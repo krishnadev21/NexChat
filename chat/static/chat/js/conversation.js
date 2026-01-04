@@ -1,4 +1,4 @@
-import { initPresenceSocket, getPresenceSocket } from "./presence.js";
+import { initPresenceSocket, onPresenceUpdate } from "./presence.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
     // DOM Elements
@@ -15,71 +15,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     const recipientId = chatData.recipientId;
     const userAvatar = chatData.userAvatar;
 
-
-    // Initialize once
-    
+    initPresenceSocket(userId);
 
     async function fetchLastSeen(viewedUserId) {
         try {
             const res = await fetch(`http://127.0.0.1:8001/user/${viewedUserId}/last_seen`);
             const data = await res.json();
             
-            if (data.status === "online") {
-                presenceStatus.textContent = "online";
-            } else if (data.last_seen) {
-                const date = new Date(data.last_seen);
-                presenceStatus.textContent = "Last seen: " + date.toLocaleString();
-            } else {
-                presenceStatus.textContent = "offline";
-            }
+            return data
         } catch (err) {
             console.error("Failed to fetch last seen", err);
         }
     }
 
-    await fetchLastSeen(recipientId)
+    const presentStatus = await fetchLastSeen(recipientId)
 
-    const socket = getPresenceSocket();
-
-    // Set up message handler AFTER socket is created
-    if (socket) {
-    socket.onmessage = (e) => {
-        try {
-        const data = JSON.parse(e.data);      
-        
-        // Debug: log incoming messages
-        console.log("Presence update received:", data);
-        
-        if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
-            if (presenceStatus) {
-            presenceStatus.style.transition = "opacity 0.2s ease-in-out";
-            
-            // First fade out
-            presenceStatus.style.opacity = "0";
-            
-            setTimeout(() => {
-                // Update the content based on status
-                if (data.status === "online") {
-                presenceStatus.textContent = "online";
-                } else {
-                presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
-                }
-                
-                // Then fade back in
-                presenceStatus.style.opacity = "1";
-            }, 200);
-            }
+    if (presentStatus) {
+        if (presentStatus.status === "online") {
+            presenceStatus.textContent = "online";  
+        } else {
+            presenceStatus.textContent = "Last seen: " + new Date(presentStatus.last_seen).toLocaleString();
         }
-        } catch (parseError) {
-        console.error("Error parsing WebSocket message:", parseError);
-        }
-    };
-    
-    // Also handle when socket is ready
-    socket.onopen = () => {
-        console.log("Ready to receive presence updates");
-    };
     }
+
+    onPresenceUpdate((data) => {
+        if (data.type !== "presence") return;
+        if (Number(data.user_id) !== Number(recipientId)) return;
+
+        presenceStatus.style.transition = "opacity 0.2s ease-in-out";
+        presenceStatus.style.opacity = "0";
+
+        setTimeout(() => {
+            if (data.status === "online") {
+                presenceStatus.textContent = "online";
+            } else {
+                presenceStatus.textContent =
+                    "Last seen: " + new Date(data.last_seen).toLocaleString();
+            }
+            presenceStatus.style.opacity = "1";
+        }, 200);
+    });
 
     function renderStatus(status) {
         switch (status) {
