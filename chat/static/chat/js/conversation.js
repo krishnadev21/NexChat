@@ -67,11 +67,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }   
 
-    // //Web Scoket Presence
-    // const presenceSocket = new WebSocket(
-    //     `ws://127.0.0.1:8001/ws/presence/${userId}`
-    // );
-
     // Auto-scroll function
     const scrollToBottom = () => {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -278,31 +273,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         return messageObj;
     };
-
-    // presenceSocket.onmessage = (e) => {
-    // const data = JSON.parse(e.data);      
-        
-    // if (data.type === "presence" && Number(data.user_id) === Number(recipientId)) {
-    //     if (presenceStatus) {
-    //     presenceStatus.style.transition = "opacity 0.2s ease-in-out";
-        
-    //     // First fade out
-    //     presenceStatus.style.opacity = "0";
-        
-    //     setTimeout(() => {
-    //         // Update the content based on status
-    //         if (data.status === "online") {
-    //         presenceStatus.textContent = "online";
-    //         } else {
-    //         presenceStatus.textContent = "Last seen: " + new Date(data.last_seen).toLocaleString();
-    //         }
-            
-    //         // Then fade back in
-    //         presenceStatus.style.opacity = "1";
-    //     }, 200);
-    //     }
-    // }
-    // };
 
     chatSocket.onmessage = (e) => {
         // Parse the received message
