@@ -1,4 +1,6 @@
-document.addEventListener("DOMContentLoaded", () => {
+import { initPresenceSocket, onPresenceUpdate } from "./presence.js";
+
+document.addEventListener("DOMContentLoaded", async () => {
     // DOM Elements
     const chatForm = document.getElementById("chat-form");
     const messagesContainer = document.getElementById("messages-container");
@@ -11,6 +13,35 @@ document.addEventListener("DOMContentLoaded", () => {
     const userId = chatData.userId;
     const userAvatar = chatData.userAvatar;
     const participantIds = JSON.parse(chatData.participantIds).join(",");
+
+    const participants = (chatData.participants);
+    console.log('Participants:', participants);
+
+    initPresenceSocket(userId);
+
+    // 📡 Fetch initial presence snapshot
+    async function fetchUsersPresence(userIds) {
+        const res = await fetch("http://127.0.0.1:8001/users/presence", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_ids: userIds })
+        });
+
+        const data = await res.json();
+        console.log("Initial presence:", data);
+        return data;
+    }
+
+    // ✅ IMPORTANT: await here
+    // const presenceStatus = await fetchUsersPresence(participantIds);
+
+    // if (presenceStatus) {
+    //     if (presenceStatus.status === "online") {
+    //         presenceStatus.textContent = presenceMap[participants].status;  
+    //     } else {
+    //         presenceStatus.textContent = "Last seen: " + new Date(presentStatus.last_seen).toLocaleString();
+    //     }
+    // }
 
     function renderStatus(status) {
         switch (status) {

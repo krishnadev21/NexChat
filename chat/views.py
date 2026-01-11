@@ -322,6 +322,13 @@ class GroupView(LoginRequiredMixin, View):
             # Get the group with prefetched messages and participants
             group = GroupModel.objects.get(pk=pk)
             participant_ids = list(group.participants.values_list("id", flat=True))
+            # participant_names = list(group.participants.values_list("username", flat=True))
+            # participants = dict(group.participants.values("id", "username"))
+             
+            participants = dict()
+            for participant in group.participants.all(): 
+                participants[participant.id] = participant.username
+            print(f'Participants: {participants}')
             messages = group.messages.all().order_by('timestamp')
         
         except Exception as e:
@@ -330,6 +337,7 @@ class GroupView(LoginRequiredMixin, View):
         return render(request, 'chat/group.html', {
             'group': group,
             'chat_messages': messages,
+            'participants': participants,
             'participant_ids': participant_ids,
         })
     
