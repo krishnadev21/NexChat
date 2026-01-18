@@ -1,3 +1,5 @@
+import json
+
 from django.views import View
 from django.db.models import Q
 from django.utils import timezone
@@ -337,7 +339,7 @@ class GroupView(LoginRequiredMixin, View):
         return render(request, 'chat/group.html', {
             'group': group,
             'chat_messages': messages,
-            'participants': participants,
+            'participants': json.dumps(participants),
             'participant_ids': participant_ids,
         })
     

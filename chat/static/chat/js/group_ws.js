@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const chatForm = document.getElementById("chat-form");
     const messagesContainer = document.getElementById("messages-container");
     const messageInput = document.getElementById("body");
-    const typingIndicator = document.getElementById(`typing-indicator`);
+    const typingIndicator = document.getElementById(`presence-status`);
 
     // Configuration Data
     const chatData = document.getElementById("chat-container").dataset;
@@ -14,8 +14,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const userAvatar = chatData.userAvatar;
     const participantIds = JSON.parse(chatData.participantIds).join(",");
 
-    const participants = (chatData.participants);
-    console.log('Participants:', participants);
+    const participants = chatData.participants;
+    const participantsobj = JSON.parse(participants);
+    console.log('Participants:', typeof(participantsobj));
 
     initPresenceSocket(userId);
 
@@ -29,11 +30,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const data = await res.json();
         console.log("Initial presence:", data);
-        return data;
+        for (const [key, value] of Object.entries(data)) typingIndicator.textContent += participantsobj[key];
     }
 
     // ✅ IMPORTANT: await here
-    // const presenceStatus = await fetchUsersPresence(participantIds);
+    const presenceStatus = await fetchUsersPresence(participantIds);
 
     // if (presenceStatus) {
     //     if (presenceStatus.status === "online") {

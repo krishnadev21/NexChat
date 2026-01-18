@@ -59,6 +59,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     onPresenceUpdate((data) => {
         if (data.type !== "presence") return;
 
+        console.log(data);
+
         const dot = document.querySelector(
             `.presence-dot[data-user-id="${data.user_id}"]`
         );
