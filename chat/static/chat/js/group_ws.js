@@ -20,7 +20,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initPresenceSocket(userId);
 
-    // 📡 Fetch initial presence snapshot
     async function fetchUsersPresence(userIds) {
         const res = await fetch("http://127.0.0.1:8001/users/presence", {
             method: "POST",
@@ -30,7 +29,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const data = await res.json();
         console.log("Initial presence:", data);
-        for (const [key, value] of Object.entries(data)) typingIndicator.textContent += participantsobj[key];
+
+        const onlineNames = [];
+
+        for (const [userId, presence] of Object.entries(data)) {
+            if (presence.status === "online") {
+                const name = participantsobj[userId];
+                if (name) {
+                    onlineNames.push(name);
+                }
+            }
+        }
+
+        typingIndicator.textContent =
+            onlineNames.length > 0
+                ? `${onlineNames.join(", ")} online`
+                : "No one online";
     }
 
     // ✅ IMPORTANT: await here
