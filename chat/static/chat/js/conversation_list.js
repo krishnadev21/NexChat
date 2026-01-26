@@ -15,10 +15,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         .filter(Boolean);
 
     // 🔌 Init presence socket ONCE
-    initPresenceSocket(userId);
+    // initPresenceSocket(userId);
 
     // 📡 Fetch initial presence snapshot
     async function fetchUsersPresence(userIds) {
+        console.log(`Initial Presence Called ${Date.now()}`);
+        
         const res = await fetch("http://127.0.0.1:8001/users/presence", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -26,7 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         const data = await res.json();
-        console.log("Initial presence:", data);
+        console.log("Initial presence:", data, Date.now());
         return data;
     }
 
@@ -55,6 +57,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             badge.classList.add("bg-gray-400");
         }
     });
+
+    // 🔌 Init presence socket ONCE
+    initPresenceSocket(userId);
 
     onPresenceUpdate((data) => {
         if (data.type !== "presence") return;

@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const res = await fetch(`http://127.0.0.1:8001/user/${viewedUserId}/last_seen`);
             const data = await res.json();
             
+            console.log(data);
             return data
         } catch (err) {
             console.error("Failed to fetch last seen", err);
