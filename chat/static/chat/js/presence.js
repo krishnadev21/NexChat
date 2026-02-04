@@ -82,34 +82,34 @@ export function initPresenceSocket(userId) {
         console.error('Presence socket error:', error);
     };
 
-    // Handle page visibility changes
-    document.addEventListener('visibilitychange', () => {
-        if (presenceSocket && presenceSocket.readyState === WebSocket.OPEN) {
-            presenceSocket.send(JSON.stringify({
-                type: 'visibility_change',
-                is_visible: !document.hidden,
-                client_id: clientId,
-                timestamp: Date.now()
-            }));
-        }
-    });
+    // // Handle page visibility changes
+    // document.addEventListener('visibilitychange', () => {
+    //     if (presenceSocket && presenceSocket.readyState === WebSocket.OPEN) {
+    //         presenceSocket.send(JSON.stringify({
+    //             type: 'visibility_change',
+    //             is_visible: !document.hidden,
+    //             client_id: clientId,
+    //             timestamp: Date.now()
+    //         }));
+    //     }
+    // });
 
-    // Handle page unload
-    window.addEventListener('beforeunload', () => {
-        if (presenceSocket && presenceSocket.readyState === WebSocket.OPEN) {
-            // Send quick unload notification
-            try {
-                presenceSocket.send(JSON.stringify({
-                    type: 'visibility_change',
-                    is_visible: false,
-                    client_id: clientId,
-                    timestamp: Date.now()
-                }));
-            } catch (e) {
-                // Ignore errors during unload
-            }
-        }
-    });
+    // // Handle page unload
+    // window.addEventListener('beforeunload', () => {
+    //     if (presenceSocket && presenceSocket.readyState === WebSocket.OPEN) {
+    //         // Send quick unload notification
+    //         try {
+    //             presenceSocket.send(JSON.stringify({
+    //                 type: 'visibility_change',
+    //                 is_visible: false,
+    //                 client_id: clientId,
+    //                 timestamp: Date.now()
+    //             }));
+    //         } catch (e) {
+    //             // Ignore errors during unload
+    //         }
+    //     }
+    // });
 
     return presenceSocket;
 }
