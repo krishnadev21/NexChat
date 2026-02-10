@@ -13,6 +13,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const userIds = Array.from(document.querySelectorAll(".user-item"))
         .map(item => String(item.dataset.userId))
         .filter(Boolean);
+    console.log(userIds);
+    
 
     // 🔌 Init presence socket ONCE
     // initPresenceSocket(userId);

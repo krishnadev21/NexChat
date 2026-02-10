@@ -31,7 +31,7 @@ export function initPresenceSocket(userId) {
     }
 
     const wsUrl = `ws://127.0.0.1:8001/ws/presence/${userId}`;
-    console.log(`Connecting presence socket for user ${userId}, client ${clientId}`);
+    console.log(`Connecting presence socket for user ${userId}, client ${clientId} at ${Date.now()}`);
     
     presenceSocket = new WebSocket(wsUrl);
 
@@ -61,8 +61,9 @@ export function initPresenceSocket(userId) {
         let data;
         try {
             data = JSON.parse(event.data);
-            console.log('Presence update received:', data);
-        } catch {
+            console.log('Presence update received:', data, Date.now());
+        } catch (e) {
+            console.error('Failed to parse presence update:', e)
             return;
         }
         listeners.forEach(cb => cb(data));
