@@ -19,10 +19,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 🔌 Init presence socket ONCE
     // initPresenceSocket(userId);
 
+    // Results: "5:45 pm", "11:30 am", "12:15 pm"
+    function formatTime(timestamp) {
+        return new Date(timestamp)
+        .toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        })
+        .toLowerCase();
+    }
+
     // 📡 Fetch initial presence snapshot
     async function fetchUsersPresence(userIds) {
-        console.log(`Initial Presence Called ${Date.now()}`);
-        
         const res = await fetch("http://127.0.0.1:8001/users/presence", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -30,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         const data = await res.json();
-        console.log("Initial presence:", data, Date.now());
+        console.log("Initial presence:", data);
         return data;
     }
 

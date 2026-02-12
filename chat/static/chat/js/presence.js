@@ -4,6 +4,17 @@ const listeners = new Set();
 let heartbeatInterval = null;
 let clientId = null;
 
+// Results: "5:45 pm", "11:30 am", "12:15 pm"
+    function formatTime(timestamp) {
+        return new Date(timestamp)
+        .toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        })
+        .toLowerCase();
+    }
+
 export function initPresenceSocket(userId) {
     if (presenceSocket && currentUserId === userId && clientId) {
         return presenceSocket;
@@ -31,7 +42,7 @@ export function initPresenceSocket(userId) {
     }
 
     const wsUrl = `ws://127.0.0.1:8001/ws/presence/${userId}`;
-    console.log(`Connecting presence socket for user ${userId}, client ${clientId} at ${Date.now()}`);
+    console.log(`Connecting presence socket for user ${userId}, client ${clientId} at ${formatTime(Date.now())}`);
     
     presenceSocket = new WebSocket(wsUrl);
 
@@ -61,7 +72,7 @@ export function initPresenceSocket(userId) {
         let data;
         try {
             data = JSON.parse(event.data);
-            console.log('Presence update received:', data, Date.now());
+            console.log('Presence update received:', data, formatTime(Date.now()));
         } catch (e) {
             console.error('Failed to parse presence update:', e)
             return;
